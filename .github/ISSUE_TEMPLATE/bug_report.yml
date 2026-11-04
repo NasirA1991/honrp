@@ -1,0 +1,49 @@
+name: Bug report
+description: Something is missing, wrong, or the presence is stuck
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please run `honrp doctor` first — it answers most of these questions.
+        Redact your username/home path if you prefer.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What the Discord card showed, what you expected, and when.
+      placeholder: "In Plinko it showed 'Main Menu'; I expected 'Playing Plinko'."
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: honrp doctor output
+      render: shell
+  - type: input
+    id: distro
+    attributes:
+      label: Distribution / desktop
+      placeholder: "Arch, KDE Plasma 6, Wayland"
+  - type: input
+    id: proton
+    attributes:
+      label: Steam / Proton
+      placeholder: "Steam native, GE-Proton 11-12"
+  - type: input
+    id: discord
+    attributes:
+      label: Discord client
+      placeholder: "Discord 1.0.168 (native) / Vesktop / Flatpak"
+  - type: input
+    id: build
+    attributes:
+      label: Bridge build
+      description: The `build` value from the `[HONRP]` boot line, if you have it.
+      placeholder: "build:9"
+  - type: textarea
+    id: line
+    attributes:
+      label: Raw state line (optional)
+      description: The latest `[HONRP]` line from console.log, if the card is wrong.
+      render: json
