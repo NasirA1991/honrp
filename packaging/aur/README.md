@@ -24,7 +24,7 @@ cd honrp-bin
 cp /path/to/honrp/packaging/aur/PKGBUILD .
 cp /path/to/honrp/packaging/aur/.SRCINFO .
 git add PKGBUILD .SRCINFO
-git commit -m "Initial import: honrp-bin 0.2.2"
+git commit -m "Initial import: honrp-bin 0.2.3"
 git push
 ```
 
