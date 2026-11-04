@@ -1,6 +1,7 @@
 # honrp
 
 [![CI](https://github.com/NasirA1991/honrp/actions/workflows/ci.yml/badge.svg)](https://github.com/NasirA1991/honrp/actions/workflows/ci.yml)
+[![AUR](https://img.shields.io/badge/AUR-honrp--bin-1793D1?logo=archlinux&logoColor=white)](https://aur.archlinux.org/packages/honrp-bin)
 
 Discord Rich Presence for **Heroes of Newerth: Reborn** (the Juvio client) on Linux —
 Steam/Proton, Lutris, Heroic, Faugus, Bottles, or plain Wine.
