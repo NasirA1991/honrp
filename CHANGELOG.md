@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2 — 2026-11-04
+
+- Default `large_image` is `hon-transparent`, matching the verified asset key
+  for the built-in Discord application.
+
 ## 0.2.1 — 2026-11-04
 
 - Detection no longer assumes a fixed Steam app id. Non-Steam shortcuts get a

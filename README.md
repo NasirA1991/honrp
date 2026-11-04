@@ -102,7 +102,8 @@ If you want a custom name or artwork:
 
    or run `honrp install --client-id <ID>`.
 3. Optional: upload an image under **Rich Presence → Art Assets** with the
-   name `hon`; no artwork is shipped in this repo.
+   name `hon-transparent` (or set `large_image` to whatever name you use); no
+   artwork is shipped in this repo.
 
 The built-in id is only a default: `client_id` / `HONRP_CLIENT_ID` overrides it.
 
@@ -137,7 +138,7 @@ discord-ipc` shows no connection from `honrp`.
 | key | default | meaning |
 |---|---|---|
 | `client_id` | — | Discord application id |
-| `large_image` | `hon` | Rich Presence asset key; empty disables art |
+| `large_image` | `hon-transparent` | Rich Presence asset key; empty disables art |
 | `large_text` | `Heroes of Newerth` | art hover text |
 | `show_timer` | `false` | match/menu elapsed timer |
 | `show_kda` | `true` | `hero • Lv • K/D/A` vs `hero • Lv` |

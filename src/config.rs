@@ -24,7 +24,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             client_id: DEFAULT_CLIENT_ID.into(),
-            large_image: "hon".into(),
+            large_image: "hon-transparent".into(),
             large_text: "Heroes of Newerth".into(),
             poll_interval: 1.0,
             refresh_interval: 300.0,
