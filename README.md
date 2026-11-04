@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/banner.png" alt="honrp — Discord Rich Presence for Heroes of Newerth on Linux" width="100%">
+</p>
+
 # honrp
 
 [![CI](https://github.com/NasirA1991/honrp/actions/workflows/ci.yml/badge.svg)](https://github.com/NasirA1991/honrp/actions/workflows/ci.yml)
