@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.5 — 2026-11-04
+
+- Release workflow fix: include the `tar.gz` and a `checksums.txt` covering all
+  assets in the published release.
+
 ## 0.2.4 — 2026-11-04
 
 - Release artifacts are now built entirely by GitHub Actions: tarball, static

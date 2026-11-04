@@ -29,7 +29,7 @@ jobs:
           cp install.sh dist/install.sh
           (cd dist && sha256sum honrp-linux-x86_64 > honrp-linux-x86_64.sha256)
           tar -czf "honrp-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" -C dist .
-          sha256sum "honrp-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" > checksums.txt
+          mv "honrp-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" dist/
 
       - uses: actions/upload-artifact@v4
         with:
@@ -135,6 +135,11 @@ jobs:
         with:
           name: dist-arch
           path: dist
+
+      - name: Checksums
+        run: |
+          cd dist
+          ls -1 | grep -v '^checksums.txt$' | xargs sha256sum > checksums.txt
 
       - uses: softprops/action-gh-release@v2
         with:

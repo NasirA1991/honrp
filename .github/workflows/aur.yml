@@ -1,0 +1,123 @@
+name: AUR
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.2.5)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download release files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          mkdir -p rel
+          gh release download "${{ steps.tag.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --dir rel \
+            --pattern honrp-linux-x86_64 --pattern LICENSE --pattern config.example.json --clobber
+
+      - name: Generate AUR files
+        run: |
+          set -euo pipefail
+          tag="${{ steps.tag.outputs.tag }}"
+          ver="${tag#v}"
+          bin_sha="$(sha256sum rel/honrp-linux-x86_64 | cut -d' ' -f1)"
+          lic_sha="$(sha256sum rel/LICENSE | cut -d' ' -f1)"
+          cfg_sha="$(sha256sum rel/config.example.json | cut -d' ' -f1)"
+
+          cat > PKGBUILD <<EOF
+          # Maintainer: Nasir <https://github.com/NasirA1991>
+          pkgname=honrp-bin
+          pkgver=$ver
+          pkgrel=1
+          pkgdesc='Discord Rich Presence for Heroes of Newerth (Juvio) on Linux/Steam Proton'
+          arch=('x86_64')
+          url='https://github.com/NasirA1991/honrp'
+          license=('MIT')
+          provides=('honrp')
+          conflicts=('honrp')
+          options=('!strip')
+          source=(
+            "honrp-linux-x86_64::https://github.com/NasirA1991/honrp/releases/download/v\${pkgver}/honrp-linux-x86_64"
+            "LICENSE::https://github.com/NasirA1991/honrp/raw/v\${pkgver}/LICENSE"
+            "config.example.json::https://github.com/NasirA1991/honrp/raw/v\${pkgver}/config.example.json"
+          )
+          sha256sums=('$bin_sha' '$lic_sha' '$cfg_sha')
+
+          package() {
+            install -Dm755 "\$srcdir/honrp-linux-x86_64" "\$pkgdir/usr/bin/honrp"
+            install -Dm644 "\$srcdir/LICENSE" "\$pkgdir/usr/share/licenses/\$pkgname/LICENSE"
+            install -Dm644 "\$srcdir/config.example.json" "\$pkgdir/usr/share/honrp/config.example.json"
+          }
+
+          post_install() {
+            cat <<'MSG'
+          Finish setup as your user (not root):
+            honrp install
+          Restart Heroes of Newerth afterwards.
+          MSG
+          }
+          EOF
+
+          cat > .SRCINFO <<EOF
+          pkgbase = honrp-bin
+          	pkgdesc = Discord Rich Presence for Heroes of Newerth (Juvio) on Linux/Steam Proton
+          	pkgver = $ver
+          	pkgrel = 1
+          	url = https://github.com/NasirA1991/honrp
+          	arch = x86_64
+          	license = MIT
+          	provides = honrp
+          	conflicts = honrp
+          	options = !strip
+          	source = honrp-linux-x86_64::https://github.com/NasirA1991/honrp/releases/download/v$ver/honrp-linux-x86_64
+          	source = LICENSE::https://github.com/NasirA1991/honrp/raw/v$ver/LICENSE
+          	source = config.example.json::https://github.com/NasirA1991/honrp/raw/v$ver/config.example.json
+          	sha256sums = $bin_sha
+          	sha256sums = $lic_sha
+          	sha256sums = $cfg_sha
+
+          pkgname = honrp-bin
+          EOF
+
+      - name: Push to AUR
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${AUR_SSH_KEY:-}" ]; then
+            echo "AUR_SSH_KEY is not configured; generated PKGBUILD/.SRCINFO but skipped the push."
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
+          git clone ssh://aur@aur.archlinux.org/honrp-bin.git aur
+          cp PKGBUILD .SRCINFO aur/
+          cd aur
+          git config user.name "honrp CI"
+          git config user.email "honrp-ci@users.noreply.github.com"
+          git add PKGBUILD .SRCINFO
+          git commit -m "honrp-bin ${{ steps.tag.outputs.tag }}" || true
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/aur -o IdentitiesOnly=yes" git push origin master
