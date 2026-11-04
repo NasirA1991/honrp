@@ -168,9 +168,24 @@ pub fn user_dir_candidates(prefix: Option<&Path>) -> Vec<PathBuf> {
             }
         }
     }
+    if let Some(w) = std::env::var_os("WINEPREFIX") {
+        for ud in windows_user_dirs(Path::new(&w)) {
+            add(&mut set, ud);
+        }
+    }
     if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
         for ud in windows_user_dirs(&home.join(".wine")) {
             add(&mut set, ud);
+        }
+        // Lutris and similar tools keep Wine prefixes under ~/Games/<name>.
+        for base in [home.join("Games"), home.join("games")] {
+            if let Ok(entries) = fs::read_dir(&base) {
+                for entry in entries.flatten() {
+                    for ud in windows_user_dirs(&entry.path()) {
+                        add(&mut set, ud);
+                    }
+                }
+            }
         }
     }
     set.into_iter().collect()

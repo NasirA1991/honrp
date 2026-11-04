@@ -1,18 +1,39 @@
 #!/usr/bin/env bash
-# Build honrp from a source checkout and install it for the current user.
-# For release tarballs, run `honrp install` directly instead.
+# Download the latest static honrp binary, install it for this user and set up
+# the Lua bridge + systemd user service.
 set -euo pipefail
 
-here="$(cd "$(dirname "$0")" && pwd)"
-cd "$here"
+repo="NasirA1991/honrp"
+bin="honrp-linux-x86_64"
+dest="${HOME}/.local/bin/honrp"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
 
-if ! command -v cargo >/dev/null 2>&1; then
-  echo "cargo is required to build from source." >&2
-  echo "Download a release binary from https://github.com/NasirA1991/honrp/releases" >&2
-  exit 1
+case "$(uname -m)" in
+  x86_64|amd64) ;;
+  *) echo "unsupported architecture: $(uname -m) (only x86_64 builds are published)" >&2; exit 1 ;;
+esac
+
+base="https://github.com/${repo}/releases/latest/download"
+echo "downloading ${base}/${bin}"
+curl -fsSL "${base}/${bin}" -o "${tmp}/${bin}"
+chmod +x "${tmp}/${bin}"
+
+if curl -fsSL "${base}/${bin}.sha256" -o "${tmp}/${bin}.sha256" 2>/dev/null; then
+  (cd "$tmp" && sha256sum -c "${bin}.sha256")
 fi
 
-cargo build --release
-install -Dm755 target/release/honrp "$HOME/.local/bin/honrp"
-echo "installed $HOME/.local/bin/honrp"
-"$HOME/.local/bin/honrp" install
+install -Dm755 "${tmp}/${bin}" "${dest}"
+echo "installed ${dest}"
+
+id=""
+if [ -r /dev/tty ]; then
+  printf "Discord application id (leave blank to configure later): "
+  read -r id < /dev/tty || id=""
+fi
+
+if [ -n "${id}" ]; then
+  "${dest}" install --client-id "${id}"
+else
+  "${dest}" install
+fi

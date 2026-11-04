@@ -67,6 +67,12 @@ enum Cmd {
     Install {
         #[arg(long, value_name = "DIR")]
         user_dir: Option<PathBuf>,
+        /// Proton/Wine prefix to use (default: detect)
+        #[arg(long, value_name = "PFX")]
+        prefix: Option<PathBuf>,
+        /// Discord application id; written to ~/.config/honrp/config.json
+        #[arg(long, value_name = "ID")]
+        client_id: Option<String>,
         #[arg(long)]
         no_service: bool,
     },
@@ -110,8 +116,10 @@ fn main() -> Result<()> {
         Cmd::Doctor { user_dir } => doctor(&cfg, user_dir),
         Cmd::Install {
             user_dir,
+            prefix,
+            client_id,
             no_service,
-        } => install(user_dir, no_service),
+        } => install(user_dir, prefix, client_id, no_service),
         Cmd::Uninstall { user_dir } => uninstall(user_dir),
         Cmd::Service { action } => match action {
             ServiceAction::Install => service_install(),
@@ -121,10 +129,11 @@ fn main() -> Result<()> {
     }
 }
 
-fn resolve_user_dir(explicit: Option<PathBuf>) -> Option<PathBuf> {
+fn resolve_user_dir(explicit: Option<PathBuf>, prefix: Option<PathBuf>) -> Option<PathBuf> {
     let games = detect::find_games();
-    let prefix = games.last().and_then(|g| g.prefix.as_deref());
-    detect::pick_user_dir(prefix, explicit.as_deref())
+    let detected = games.last().and_then(|g| g.prefix.clone());
+    let prefix = prefix.or(detected);
+    detect::pick_user_dir(prefix.as_deref(), explicit.as_deref())
 }
 
 fn status(cfg: &Config, as_json: bool, user_dir: Option<PathBuf>) -> Result<()> {
@@ -289,13 +298,39 @@ fn doctor(cfg: &Config, user_dir: Option<PathBuf>) -> Result<()> {
     Ok(())
 }
 
-fn install(user_dir: Option<PathBuf>, no_service: bool) -> Result<()> {
-    let Some(ud) = resolve_user_dir(user_dir) else {
+fn set_client_id(id: &str) -> Result<()> {
+    let path = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .context("HOME not set")?
+        .join(".config/honrp/config.json");
+    let mut cfg: serde_json::Value = fs::read_to_string(&path)
+        .ok()
+        .and_then(|t| serde_json::from_str(&t).ok())
+        .unwrap_or_else(|| json!({}));
+    cfg["client_id"] = json!(id);
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir)?;
+    }
+    fs::write(&path, serde_json::to_string_pretty(&cfg)? + "\n")?;
+    println!("wrote client_id to {}", path.display());
+    Ok(())
+}
+
+fn install(
+    user_dir: Option<PathBuf>,
+    prefix: Option<PathBuf>,
+    client_id: Option<String>,
+    no_service: bool,
+) -> Result<()> {
+    let Some(ud) = resolve_user_dir(user_dir, prefix) else {
         bail!(
             "could not find the Heroes of Newerth user directory.\n\
-             Start HoN once, or pass --user-dir '<prefix>/drive_c/users/<user>/Documents/Juvio/Heroes of Newerth'"
+             Start HoN once, or pass --prefix '<pfx>' / --user-dir '<dir>'"
         );
     };
+    if let Some(id) = client_id {
+        set_client_id(&id)?;
+    }
     let target = mod_install(&ud)?;
     println!("installed Lua bridge -> {}", target.display());
     println!();
@@ -305,7 +340,13 @@ fn install(user_dir: Option<PathBuf>, no_service: bool) -> Result<()> {
     println!("  - the daemon reads that log and talks only to Discord's local socket");
     println!("  - no internet, no game memory access, no input, no game files changed");
     println!();
-    if !no_service {
+    let cfg = Config::load(None);
+    if cfg.client_id.is_empty() {
+        eprintln!("warning: no Discord application id configured yet.");
+        eprintln!("  create one at https://discord.com/developers/applications and run:");
+        eprintln!("    honrp install --client-id <ID>");
+        eprintln!("  (the service is not started until an id is configured)");
+    } else if !no_service {
         match service_install() {
             Ok(()) => println!("systemd user service installed and started"),
             Err(e) => println!("warning: systemd service not installed: {e}"),
@@ -317,7 +358,7 @@ fn install(user_dir: Option<PathBuf>, no_service: bool) -> Result<()> {
 
 fn uninstall(user_dir: Option<PathBuf>) -> Result<()> {
     let _ = service_uninstall();
-    if let Some(ud) = resolve_user_dir(user_dir) {
+    if let Some(ud) = resolve_user_dir(user_dir, None) {
         mod_uninstall(&ud)?;
         println!("removed the Lua bridge from {}", ud.display());
     } else {

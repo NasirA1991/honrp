@@ -8,28 +8,24 @@ permissions:
   contents: write
 
 jobs:
-  musl:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-unknown-linux-musl
-
-      - name: musl toolchain
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
 
       - name: Build static binary
-        run: cargo build --release --target x86_64-unknown-linux-musl
+        run: RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target x86_64-unknown-linux-gnu
 
       - name: Package
         run: |
           mkdir -p dist
-          cp target/x86_64-unknown-linux-musl/release/honrp dist/
-          mkdir -p dist/lua && cp lua/honrp_mod.lua dist/lua/
-          cp -r assets dist/ 2>/dev/null || true
+          cp target/x86_64-unknown-linux-gnu/release/honrp dist/honrp-linux-x86_64
+          cp lua/honrp_mod.lua dist/
           cp config.example.json dist/
+          cp install.sh dist/install.sh
+          (cd dist && sha256sum honrp-linux-x86_64 > honrp-linux-x86_64.sha256)
           tar -czf "honrp-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" -C dist .
           sha256sum "honrp-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" > checksums.txt
 
@@ -38,3 +34,6 @@ jobs:
           files: |
             honrp-*.tar.gz
             checksums.txt
+            dist/honrp-linux-x86_64
+            dist/honrp-linux-x86_64.sha256
+            dist/install.sh

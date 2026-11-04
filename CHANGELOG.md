@@ -2,39 +2,13 @@
 
 ## 0.2.0 — 2026-11-04
 
-Pure Rust.
-
-- Python daemon removed; the `honrp` crate now lives at the repository root.
-- `install.sh` builds from source and runs `honrp install`; tag releases build a
-  static musl binary.
-- `honrp` commands: `run`, `status [--json]`, `doctor`, `install`, `uninstall`,
-  `service install|uninstall|status`.
-- Measured: 814 KB release binary, 3.0 MiB RSS idle, no Discord connection while
-  HoN is closed.
-- CI: Rust tests/build + Lua bridge harness.
-
-## Unreleased
-
-- Rust port MVP (`rust/honrp`): `/proc` + prefix detection, UTF-16LE log tail
-  (starts at EOF), mod-state parsing, match-log map/mode, activity builder,
-  Discord IPC with clear-on-exit, `status`/`doctor`/`install`/`service`,
-  unit tests and a mock-Discord end-to-end run. 814 KB release binary, ~6 MiB
-  RSS idle.
-- Rust CI job; musl release workflow on tags.
-
-## 0.1.0 — 2026-11-04
-
-Initial prototype.
-
-- Lua bridge (`startup.lua`) driven by the engine's UI triggers: match/queue/
-  lobby/hero-select/panels, hero level, KDA, spectator state.
-- Daemon: juvio.exe discovery, Proton prefix/user-dir detection, UTF-16LE
-  `console.log` tailing, match-log parsing, Discord IPC with reconnect and
-  throttling.
-- Presence: ranked/unranked, short map labels (`FoW`, `Mid Wars`, `Field Test`),
-  `hero • Lv N • K/D/A`, panel cards (Plinko, Store, Learn, ...), no timer by
-  default.
-- 10 s heartbeat + event-driven emits; log flush per emit.
-- Discord connection only while a game runs; clear-on-exit with the game's pid.
-- Tests: 22 unit tests + Lua harness (mocked K2 environment).
-- Packaging: static-binary release plan and Rust port tracked in docs/PLAN.md.
+- Discord Rich Presence for Heroes of Newerth (Juvio) on Linux/Steam Proton.
+- Static Rust daemon: `/proc` + Proton prefix detection, UTF-16LE log tail,
+  match/queue/lobby/hero-select/panel state, hero level and KDA.
+- Discord IPC with clear-on-exit, send throttling and reconnect; the daemon is
+  connected only while the game runs.
+- Lua bridge (build 9) loaded through the client's `startup.lua`.
+- Commands: `install`, `uninstall`, `status`, `doctor`, `run`, `service`.
+- Configurable labels: `FoW` short map, timer off by default, optional KDA.
+- Tests: 9 Rust unit tests + mocked-K2 Lua harness.
+- `install.sh` downloads the release binary and sets up the user service.
