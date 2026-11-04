@@ -21,6 +21,8 @@ Two pieces:
 Nothing in the game install directory is modified. The mod lives next to the
 game's own settings files and is read by the engine at launch.
 
+![The states honrp reports](demo_states.png)
+
 > **Project status:** reference implementation in Python. The static Rust port
 > and release plan are in [docs/PLAN.md](docs/PLAN.md); the Lua bridge and the
 > presence format are already final and shared by both.
