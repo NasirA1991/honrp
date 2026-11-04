@@ -5,6 +5,16 @@
 Discord Rich Presence for **Heroes of Newerth: Reborn** (the Juvio client) on Linux —
 Steam/Proton, Lutris, Heroic, Faugus, Bottles, or plain Wine.
 
+## States
+
+<p align="center">
+  <img src="assets/states.png" alt="The six honrp states: in match, in queue, hero select, spectating, main menu and Plinko" width="100%">
+</p>
+
+Illustrative render of the presence payloads (`build_activity()` output), not a
+Discord screenshot: the client draws these lines on your profile next to the
+Heroes of Newerth app art.
+
 | state | card |
 |---|---|
 | Main menu | `Main Menu` · account |
