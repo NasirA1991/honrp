@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.1 — 2026-11-04
+
+- Detection no longer assumes a fixed Steam app id. Non-Steam shortcuts get a
+  random id, so all `steamapps/compatdata/*/pfx` prefixes are scanned when the
+  game isn't running; the running process's `STEAM_COMPAT_DATA_PATH` remains the
+  exact source.
+- Built-in Discord application id: no per-user Discord app required. Override
+  with `client_id` / `HONRP_CLIENT_ID` / `honrp install --client-id`.
+- Quick installer no longer prompts.
+
 ## 0.2.0 — 2026-11-04
 
 - Discord Rich Presence for Heroes of Newerth (Juvio) on Linux/Steam Proton.

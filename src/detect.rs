@@ -3,7 +3,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-pub const HON_APP_ID: &str = "2618010418";
 pub const DOCS_TAIL: &str = "Documents/Juvio/Heroes of Newerth";
 
 #[derive(Clone, Debug)]
@@ -159,12 +158,15 @@ pub fn user_dir_candidates(prefix: Option<&Path>) -> Vec<PathBuf> {
     }
     for root in steam_roots() {
         for lib in library_paths(&root) {
-            let pfx = lib
-                .join("steamapps/compatdata")
-                .join(HON_APP_ID)
-                .join("pfx");
-            for ud in windows_user_dirs(&pfx) {
-                add(&mut set, ud);
+            // Do not assume a fixed Steam app id: a non-Steam shortcut gets a
+            // random id, so every compatdata prefix is a candidate.
+            let compat = lib.join("steamapps/compatdata");
+            if let Ok(entries) = fs::read_dir(&compat) {
+                for entry in entries.flatten() {
+                    for ud in windows_user_dirs(&entry.path().join("pfx")) {
+                        add(&mut set, ud);
+                    }
+                }
             }
         }
     }

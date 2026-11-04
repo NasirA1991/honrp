@@ -25,15 +25,4 @@ fi
 
 install -Dm755 "${tmp}/${bin}" "${dest}"
 echo "installed ${dest}"
-
-id=""
-if [ -r /dev/tty ]; then
-  printf "Discord application id (leave blank to configure later): "
-  read -r id < /dev/tty || id=""
-fi
-
-if [ -n "${id}" ]; then
-  "${dest}" install --client-id "${id}"
-else
-  "${dest}" install
-fi
+"${dest}" install

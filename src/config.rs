@@ -2,6 +2,10 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
+/// Built-in Discord application id, so users do not need to create their own
+/// Discord app. Override with `client_id` in the config or HONRP_CLIENT_ID.
+pub const DEFAULT_CLIENT_ID: &str = "1567616925515776080";
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct Config {
@@ -19,7 +23,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            client_id: String::new(),
+            client_id: DEFAULT_CLIENT_ID.into(),
             large_image: "hon".into(),
             large_text: "Heroes of Newerth".into(),
             poll_interval: 1.0,
@@ -58,9 +62,12 @@ impl Config {
 
     fn with_env(mut self) -> Self {
         if let Ok(id) = std::env::var("HONRP_CLIENT_ID") {
-            if !id.is_empty() {
+            if !id.trim().is_empty() {
                 self.client_id = id;
             }
+        }
+        if self.client_id.trim().is_empty() {
+            self.client_id = DEFAULT_CLIENT_ID.into();
         }
         self
     }

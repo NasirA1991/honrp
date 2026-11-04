@@ -24,12 +24,9 @@ curl -fsSL https://github.com/NasirA1991/honrp/releases/latest/download/install.
 
 That downloads the static binary to `~/.local/bin/honrp`, installs the Lua
 bridge into your Proton prefix, and enables a systemd **user** service — no
-root, no files touched in the game install directory. It asks for your Discord
-application id (or uses the one already in `~/.config/honrp/config.json`), then
+root, no files touched in the game install directory. The card uses honrp's
+built-in Discord application, so there is no Discord app to create. Then
 restart Heroes of Newerth.
-
-If you configure the id afterwards, run `honrp install` again — the service is
-not started until an id is present. See [Discord app](#discord-app).
 
 <details>
 <summary>Manual / from source</summary>
@@ -54,15 +51,16 @@ order:
 1. **Running game (exact)** — scan `/proc` for `juvio.exe`, read its
    environment:
    - `STEAM_COMPAT_DATA_PATH` → the exact Proton prefix
-     (`.../steamapps/compatdata/2618010418/pfx`),
+     (`.../steamapps/compatdata/<appid>/pfx`),
    - `WINEPREFIX` as a fallback.
 
-   This is independent of where HoN lives, which Steam library it's in, or how
+   This works for any Steam app id, including **non-Steam shortcuts** (Steam
+   assigns those a random id), and is independent of where HoN lives or how
    many stale prefixes exist.
 2. **Not running (best effort)** — scan:
-   - the default Steam roots and every library in `libraryfolders.vdf`,
-     checking `steamapps/compatdata/2618010418/pfx`; the Flatpak Steam path is
-     included;
+   - the default Steam roots and every library in `libraryfolders.vdf`, looking
+     inside **every** `steamapps/compatdata/*/pfx` (not a fixed app id); the
+     Flatpak Steam path is included;
    - `~/.wine`, `$WINEPREFIX` and Lutris-style `~/Games/*` prefixes.
 
    Inside each prefix it looks at `drive_c/users/*/Documents/Juvio/Heroes of
@@ -81,25 +79,32 @@ order:
 `console.log` age, and which one it picked — paste that into an issue if
 detection fails.
 
-The Steam app id (`2618010418`) is fixed, which is why scanning `compatdata`
-works for everyone. A non-Steam or manually installed client has no
-compatdata entry; that's the `--prefix` case.
+There is no fixed Steam app id to rely on: a non-Steam shortcut gets a random
+one, and a manually installed client has no `compatdata` entry at all. That's
+why the running-process environment is preferred whenever it's available, and
+why every `compatdata` prefix is scanned otherwise. If neither finds the game,
+use `--prefix` / `--user-dir` (or start HoN once so the prefix exists).
 
 ## Discord app
 
+honrp ships with a **built-in Discord application id**, so users don't need to
+create their own Discord app. The card's name and icon come from that app.
+
+If you want a custom name or artwork:
+
 1. Create an application at <https://discord.com/developers/applications> and
-   copy its **Application ID**.
+   copy its **Application ID** (this id is public, not a token/secret).
 2. Put it in `~/.config/honrp/config.json`:
 
    ```json
    {"client_id": "123456789012345678"}
    ```
 
+   or run `honrp install --client-id <ID>`.
 3. Optional: upload an image under **Rich Presence → Art Assets** with the
-   name `hon` (the repo ships no artwork). Without it the card works without
-   art.
+   name `hon`; no artwork is shipped in this repo.
 
-The card's name is your Discord application's name.
+The built-in id is only a default: `client_id` / `HONRP_CLIENT_ID` overrides it.
 
 ## After install
 
