@@ -5,6 +5,10 @@ edition = "2021"
 rust-version = "1.70"
 description = "Discord Rich Presence for Heroes of Newerth on Linux (Steam/Proton)"
 license = "MIT"
+repository = "https://github.com/NasirA1991/honrp"
+readme = "README.md"
+keywords = ["discord", "rich-presence", "heroes-of-newerth", "proton", "wine"]
+categories = ["games", "command-line-utilities"]
 
 [dependencies]
 anyhow = "1"
