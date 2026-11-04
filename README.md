@@ -22,6 +22,10 @@ curl -fsSL https://github.com/NasirA1991/honrp/releases/latest/download/install.
 
 Arch Linux: `paru -S honrp-bin` (or `yay -S honrp-bin`), then run `honrp install`.
 
+The AUR package installs the binary; `honrp install` is the **per-user** setup
+step because pacman runs as root and cannot write into your Wine prefix (which
+may not exist before the first launch).
+
 From source:
 
 ```bash
@@ -32,8 +36,20 @@ honrp install
 
 `honrp install` finds your Proton/Wine prefix, adds the Lua bridge to
 `startup.lua`, and installs a systemd **user** service — no root, nothing in the
-game install directory. Restart Heroes of Newerth afterwards. A Discord app id
-is built in, so you don't need to create a Discord application.
+game install directory. On systems without a systemd user session it writes
+`~/.config/autostart/honrp.desktop` instead. Restart Heroes of Newerth
+afterwards. A Discord app id is built in, so you don't need to create a Discord
+application.
+
+### Uninstall
+
+```bash
+honrp uninstall           # removes the Lua bridge and the service/autostart
+paru -R honrp-bin         # or: yay -R honrp-bin
+```
+
+`~/.config/honrp/config.json` is left in place so reinstalling keeps your
+settings.
 
 ## Finding HoN
 
@@ -89,6 +105,23 @@ connection.
 | wrong prefix | same flags; `honrp doctor` shows all candidates |
 | card stuck on `Main Menu` | bridge not loaded: restart HoN, check `doctor` |
 | no art | upload `hon-transparent` in the portal, or clear `large_image` |
+| Discord shows a second `Juvio` game | disable it once in Settings → Game Activity → Registered Games; honrp cannot edit Discord's detection list |
+
+## Performance
+
+Small by design:
+
+| piece | cost |
+|---|---|
+| daemon | ~1.7 MiB RSS, ~0.1–0.3% of one core; no Discord connection while HoN is closed |
+| `/proc` poll | once per second (configurable); a directory read, not game state |
+| Lua bridge | runs on the game's existing UI tick: a handful of `UICmd` lookups per state change and one console line per event / 10 s (~144 KB/h) |
+| Discord | one `SET_ACTIVITY` per change, at most every 5 s |
+
+The bridge does not hook the render loop, read game memory, or scan files during
+a match; no measurable FPS impact in testing. Heavy `console.log` growth is
+avoided by the 10 s heartbeat (the client itself logs more than this). If you
+prefer fewer `/proc` reads, set `"poll_interval": 3.0`.
 
 ## Privacy
 

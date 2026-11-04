@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.6 — 2026-11-04
+
+- Non-systemd support: `honrp install` falls back to
+  `~/.config/autostart/honrp.desktop` when no systemd user session is available.
+- Installer prints the Discord "Registered Games" hint for the competing
+  `juvio.exe` detection.
+- README: uninstall section, performance numbers, non-systemd note, Discord
+  detection troubleshooting.
+
 ## 0.2.5 — 2026-11-04
 
 - Release workflow fix: include the `tar.gz` and a `checksums.txt` covering all

@@ -32,4 +32,10 @@ honrp install         # as your user: Lua bridge + systemd user service
 ```
 
 The package ships the static binary only; the Lua bridge is embedded and written
-by `honrp install`. Artwork is optional and not included.
+by `honrp install`.
+
+`honrp install` is required after the package because pacman (and this
+package's build) runs as root and cannot write to a per-user Wine prefix — the
+prefix may not even exist before the first game launch. The command is the
+user-scoped setup and also installs the service (systemd user unit, or an XDG
+autostart entry without systemd). Artwork is optional and not included.

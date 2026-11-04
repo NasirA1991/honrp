@@ -352,6 +352,8 @@ fn install(
             Err(e) => println!("warning: systemd service not installed: {e}"),
         }
     }
+    println!("If Discord also shows a separate 'Juvio' game, disable it once in");
+    println!("Settings -> Game Activity -> Registered Games (honrp cannot change that list).");
     println!("Restart Heroes of Newerth to load the bridge, then run `honrp doctor`.");
     Ok(())
 }
@@ -450,12 +452,54 @@ fn sh(cmd: &mut Command) -> Result<()> {
     Ok(())
 }
 
+fn systemd_available() -> bool {
+    Command::new("systemctl")
+        .args(["--user", "show-environment"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+fn autostart_path() -> Result<PathBuf> {
+    let home = std::env::var_os("HOME").context("HOME not set")?;
+    Ok(PathBuf::from(home)
+        .join(".config/autostart")
+        .join("honrp.desktop"))
+}
+
+fn autostart_install(exe: &Path) -> Result<()> {
+    let path = autostart_path()?;
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir)?;
+    }
+    let entry = format!(
+        "[Desktop Entry]\n\
+         Type=Application\n\
+         Name=Heroes of Newerth Rich Presence\n\
+         Comment=honrp Discord Rich Presence daemon\n\
+         Exec=\"{}\" run\n\
+         Terminal=false\n\
+         X-GNOME-Autostart-enabled=true\n",
+        exe.display()
+    );
+    fs::write(&path, entry)?;
+    println!(
+        "systemd user session not available; installed autostart entry {}",
+        path.display()
+    );
+    println!("start it now with: \"{}\" run &", exe.display());
+    Ok(())
+}
+
 fn service_install() -> Result<()> {
+    let exe = std::env::current_exe()?;
+    if !systemd_available() {
+        return autostart_install(&exe);
+    }
     let path = service_unit_path()?;
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir)?;
     }
-    let exe = std::env::current_exe()?;
     let unit = format!(
         "[Unit]\n\
          Description=Heroes of Newerth Discord Rich Presence (honrp)\n\
@@ -479,22 +523,42 @@ fn service_install() -> Result<()> {
 }
 
 fn service_uninstall() -> Result<()> {
-    let path = service_unit_path()?;
-    let _ = sh(Command::new("systemctl").args(["--user", "disable", "--now", "honrp.service"]));
-    if path.exists() {
-        fs::remove_file(&path)?;
+    if systemd_available() {
+        let path = service_unit_path()?;
+        let _ = sh(Command::new("systemctl").args(["--user", "disable", "--now", "honrp.service"]));
+        if path.exists() {
+            fs::remove_file(&path)?;
+        }
+        let _ = sh(Command::new("systemctl").args(["--user", "daemon-reload"]));
     }
-    let _ = sh(Command::new("systemctl").args(["--user", "daemon-reload"]));
-    println!("service removed");
+    if let Ok(path) = autostart_path() {
+        if path.exists() {
+            fs::remove_file(&path)?;
+        }
+    }
+    println!("service/autostart removed");
     Ok(())
 }
 
 fn service_status() -> Result<()> {
-    let out = Command::new("systemctl")
-        .args(["--user", "status", "honrp.service", "--no-pager"])
-        .output()?;
-    print!("{}", String::from_utf8_lossy(&out.stdout));
-    print!("{}", String::from_utf8_lossy(&out.stderr));
+    if systemd_available() {
+        let out = Command::new("systemctl")
+            .args(["--user", "status", "honrp.service", "--no-pager"])
+            .output()?;
+        print!("{}", String::from_utf8_lossy(&out.stdout));
+        print!("{}", String::from_utf8_lossy(&out.stderr));
+    } else {
+        let path = autostart_path()?;
+        println!(
+            "no systemd user session; autostart entry {}: {}",
+            path.display(),
+            if path.exists() {
+                "present"
+            } else {
+                "not installed"
+            }
+        );
+    }
     Ok(())
 }
 
