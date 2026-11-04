@@ -1,42 +1,35 @@
-# AUR package: `honrp-bin`
+# AUR: `honrp-bin`
 
-`honrp-bin` installs the static release binary from GitHub Releases. The Lua
-bridge is embedded in the binary, so the package only ships `honrp`; each user
-runs `honrp install` once to write the bridge into their HoN Proton prefix and
-enable the systemd **user** service.
+The AUR package is **updated by GitHub Actions**, not from a local `makepkg`.
+`.github/workflows/aur.yml` runs after every successful **Release** workflow,
+downloads the published binary and generates `PKGBUILD` + `.SRCINFO` with the
+release checksums.
 
-## Build locally
+## One-time setup
 
-```bash
-makepkg -si
-honrp install
-```
-
-## Publish to the AUR
-
-You need an AUR account and an SSH key uploaded to
-<https://aur.archlinux.org> (My Account → SSH Public Key).
+Add the AUR SSH private key as a repository secret (the same key you use for
+`ssh aur@aur.archlinux.org`):
 
 ```bash
-# first-time import (the repo is created on the AUR side when you submit)
-git clone ssh://aur@aur.archlinux.org/honrp-bin.git
-cd honrp-bin
-cp /path/to/honrp/packaging/aur/PKGBUILD .
-cp /path/to/honrp/packaging/aur/.SRCINFO .
-git add PKGBUILD .SRCINFO
-git commit -m "Initial import: honrp-bin 0.2.3"
-git push
+gh secret set AUR_SSH_KEY < ~/.ssh/aur_rawm
 ```
 
-Alternatively use **Submit Package** on the AUR website and paste the
-`PKGBUILD`/`.SRCINFO`.
+After that, every release updates `honrp-bin` automatically. To backfill a
+release (or if the workflow was added after the tag):
 
-## Update for a new release
+```bash
+gh workflow run aur.yml -f tag=v0.2.5
+```
 
-1. bump `pkgver` in `PKGBUILD`,
-2. update `sha256sums` (binary + `LICENSE` + `config.example.json` at the tag),
-3. `makepkg --printsrcinfo > .SRCINFO`,
-4. commit/push.
+Without the secret the workflow still generates the files and exits cleanly;
+it just skips the push.
 
-The package name is `honrp-bin` (AUR convention for release binaries). If you
-prefer a longer name, use e.g. `heroes-of-newerth-rpc-bin` consistently.
+## Install
+
+```bash
+paru -S honrp-bin     # or yay -S honrp-bin
+honrp install         # as your user: Lua bridge + systemd user service
+```
+
+The package ships the static binary only; the Lua bridge is embedded and written
+by `honrp install`. Artwork is optional and not included.
