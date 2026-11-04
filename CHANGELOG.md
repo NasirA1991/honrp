@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.4 — 2026-11-04
+
+- Release artifacts are now built entirely by GitHub Actions: tarball, static
+  binary, `.deb`, `.rpm`, Arch `.pkg.tar.zst`, checksums and installer.
+- AUR packaging stays source-based; `makepkg` is only used in CI (Arch
+  container), not on the maintainer's machine.
+
 ## 0.2.3 — 2026-11-04
 
 - Launcher-agnostic prefix detection: the running process's `WINEPREFIX`,

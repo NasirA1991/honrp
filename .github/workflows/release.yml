@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,22 +18,124 @@ jobs:
       - name: Build static binary
         run: RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target x86_64-unknown-linux-gnu
 
-      - name: Package
+      - name: Tarball + checksums
         run: |
+          set -e
           mkdir -p dist
           cp target/x86_64-unknown-linux-gnu/release/honrp dist/honrp-linux-x86_64
           cp lua/honrp_mod.lua dist/
           cp config.example.json dist/
+          cp LICENSE dist/
           cp install.sh dist/install.sh
           (cd dist && sha256sum honrp-linux-x86_64 > honrp-linux-x86_64.sha256)
           tar -czf "honrp-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" -C dist .
           sha256sum "honrp-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" > checksums.txt
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-build
+          path: dist
+
+  packages:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-build
+          path: dist
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+
+      - name: Build .deb and .rpm
+        run: |
+          set -e
+          export PATH="$HOME/go/bin:$PATH"
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+          sed "s/__VERSION__/${GITHUB_REF_NAME#v}/" packaging/nfpm.yaml > /tmp/nfpm.yaml
+          nfpm pkg -f /tmp/nfpm.yaml -p deb -t dist/
+          nfpm pkg -f /tmp/nfpm.yaml -p rpm -t dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-packages
+          path: dist
+
+  arch:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-build
+          path: dist
+
+      - name: Build Arch package in archlinux container
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          bin_sha="$(sha256sum dist/honrp-linux-x86_64 | cut -d' ' -f1)"
+          lic_sha="$(sha256sum LICENSE | cut -d' ' -f1)"
+          cfg_sha="$(sha256sum config.example.json | cut -d' ' -f1)"
+          work="$PWD/archbuild"
+          rm -rf "$work"; mkdir -p "$work"
+          cp dist/honrp-linux-x86_64 LICENSE config.example.json "$work/"
+          cat > "$work/PKGBUILD" <<EOF
+          pkgname=honrp-bin
+          pkgver=$version
+          pkgrel=1
+          pkgdesc='Discord Rich Presence for Heroes of Newerth (Juvio) on Linux/Steam Proton'
+          arch=('x86_64')
+          url='https://github.com/NasirA1991/honrp'
+          license=('MIT')
+          provides=('honrp')
+          conflicts=('honrp')
+          options=('!strip')
+          source=('honrp-linux-x86_64' 'LICENSE' 'config.example.json')
+          sha256sums=('$bin_sha' '$lic_sha' '$cfg_sha')
+
+          package() {
+            install -Dm755 "\$srcdir/honrp-linux-x86_64" "\$pkgdir/usr/bin/honrp"
+            install -Dm644 "\$srcdir/LICENSE" "\$pkgdir/usr/share/licenses/\$pkgname/LICENSE"
+            install -Dm644 "\$srcdir/config.example.json" "\$pkgdir/usr/share/honrp/config.example.json"
+          }
+          EOF
+          docker run --rm -v "$work:/work" -w /work archlinux:base-devel bash -c '
+            pacman -Syu --noconfirm --needed base-devel >/dev/null
+            useradd -m builder
+            chown -R builder /work
+            su builder -c "makepkg -f --nocheck"
+          '
+          cp "$work"/*.pkg.tar.zst dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-arch
+          path: dist
+
+  publish:
+    needs: [build, packages, arch]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-build
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-packages
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-arch
+          path: dist
+
       - uses: softprops/action-gh-release@v2
         with:
-          files: |
-            honrp-*.tar.gz
-            checksums.txt
-            dist/honrp-linux-x86_64
-            dist/honrp-linux-x86_64.sha256
-            dist/install.sh
+          files: dist/*

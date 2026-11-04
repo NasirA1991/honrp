@@ -1,0 +1,21 @@
+name: honrp
+arch: amd64
+platform: linux
+version: __VERSION__
+section: utils
+priority: optional
+maintainer: Nasir <https://github.com/NasirA1991>
+description: |
+  Discord Rich Presence for Heroes of Newerth (Juvio) on Linux/Steam Proton.
+vendor: honrp
+homepage: https://github.com/NasirA1991/honrp
+license: MIT
+contents:
+  - src: dist/honrp-linux-x86_64
+    dst: /usr/bin/honrp
+    file_info:
+      mode: 0755
+  - src: LICENSE
+    dst: /usr/share/licenses/honrp/LICENSE
+  - src: config.example.json
+    dst: /usr/share/honrp/config.example.json
