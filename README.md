@@ -18,6 +18,15 @@ Steam/Proton, Lutris, Heroic, Faugus, Bottles, or plain Wine.
 | Spectating | `Spectating • FoW` · `Watching Master Of Arms` |
 | Plinko | `Playing Plinko` · account |
 
+## Screenshots
+
+<p align="center">
+  <img src="assets/screenshots.png" alt="honrp presence cards: in match, queue, hero select, spectating, main menu and Plinko" width="100%">
+</p>
+
+Rendered from the same payloads the daemon sends (`build_activity()`); Discord
+draws these lines next to the Heroes of Newerth app art, under your account.
+
 ## Install
 
 ```bash
