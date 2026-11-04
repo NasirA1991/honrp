@@ -5,3 +5,4 @@ __pycache__/
 config.json
 assets/*.tga
 assets/hon@1024.png
+rust/honrp/target/

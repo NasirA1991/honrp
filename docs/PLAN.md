@@ -247,8 +247,11 @@ Exit code 0 only when everything is green — useful in bug reports.
 - verify the `hon` art asset resolves (Discord currently drops `large_image`)
 - keep the Python daemon usable while the Rust version is developed
 
-### Phase 1 — Rust MVP (parity)
-- port modules from §1.3, port all unit tests
+### Phase 1 — Rust MVP (parity) — **mostly done, in `rust/honrp`**
+- [x] detection, tail (EOF start), activity, IPC, clear-on-exit
+- [x] status/doctor/install/service, 9 unit tests + mock-Discord e2e
+- [ ] parity pass against the Python daemon (fallback heuristics, restart hint)
+- [ ] port all unit tests
 - mock-Discord integration test (`tests/e2e_demo.py` equivalent in Rust)
 - `doctor` side-by-side with the Python version on this machine
 - feature flag to run both and diff activities

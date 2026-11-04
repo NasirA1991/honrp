@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  musl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: musl toolchain
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Build static binary
+        run: cargo build --release --target x86_64-unknown-linux-musl --manifest-path rust/honrp/Cargo.toml
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp rust/honrp/target/x86_64-unknown-linux-musl/release/honrp dist/
+          cp honrp_mod.lua dist/
+          cp -r assets dist/ 2>/dev/null || true
+          tar -czf "honrp-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" -C dist .
+          sha256sum "honrp-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" > checksums.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            honrp-*.tar.gz
+            checksums.txt

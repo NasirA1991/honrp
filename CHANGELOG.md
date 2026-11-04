@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Rust port MVP (`rust/honrp`): `/proc` + prefix detection, UTF-16LE log tail
+  (starts at EOF), mod-state parsing, match-log map/mode, activity builder,
+  Discord IPC with clear-on-exit, `status`/`doctor`/`install`/`service`,
+  unit tests and a mock-Discord end-to-end run. 814 KB release binary, ~6 MiB
+  RSS idle.
+- Rust CI job; musl release workflow on tags.
+
 ## 0.1.0 — 2026-11-04
 
 Initial prototype.

@@ -27,6 +27,21 @@ game's own settings files and is read by the engine at launch.
 > and release plan are in [docs/PLAN.md](docs/PLAN.md); the Lua bridge and the
 > presence format are already final and shared by both.
 
+## Rust binary (in progress)
+
+`rust/honrp` is the static-binary port of the daemon — same Lua bridge, same
+presence format:
+
+```bash
+cargo build --release --manifest-path rust/honrp/Cargo.toml
+./rust/honrp/target/release/honrp status --json
+./rust/honrp/target/release/honrp run          # after configuring client_id
+```
+
+Current release binary: ~**814 KB**, ~**6 MiB RSS** idle, 9 unit tests plus an
+end-to-end mock-Discord run (publish → clear on game exit). See
+[rust/README.md](rust/README.md) for the parity checklist.
+
 ## Privacy & transparency
 
 honrp is local-only and deliberately boring:
