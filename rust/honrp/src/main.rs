@@ -134,7 +134,11 @@ fn status(cfg: &Config, as_json: bool, user_dir: Option<PathBuf>) -> Result<()> 
     let mut sm = StateMachine::new(ud.clone());
     sm.poll();
     let view = sm.view();
-    let activity = activity::build(&view, cfg);
+    let activity = if sm.pid().is_some() {
+        activity::build(&view, cfg)
+    } else {
+        None
+    };
     let installed = ud.as_ref().map(|d| mod_installed(d)).unwrap_or(false);
 
     if as_json {

@@ -273,7 +273,12 @@ pub fn run(cfg: &Config, opts: RunOpts) -> Result<()> {
     while !stop.load(Ordering::Relaxed) {
         sm.poll();
         let view = sm.view();
-        let activity = activity::build(&view, cfg);
+        // no game -> no presence, and the IPC connection is dropped below
+        let activity = if sm.pid().is_some() {
+            activity::build(&view, cfg)
+        } else {
+            None
+        };
         let now = Instant::now();
 
         if opts.dry_run {
