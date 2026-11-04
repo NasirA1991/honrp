@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.3 — 2026-11-04
+
+- Launcher-agnostic prefix detection: the running process's `WINEPREFIX`,
+  `STEAM_COMPAT_DATA_PATH` or `/proc/<pid>/maps` `drive_c` path (works with
+  Steam, Lutris, Heroic, Faugus, Bottles, plain Wine, custom scripts).
+- When HoN isn't running, scan Steam (every compatdata prefix), Lutris and
+  Heroic configs, Bottles, `~/Games`, `~/.wine`, `$WINEPREFIX`, and a bounded
+  home-directory scan for any `drive_c/users/.../Documents/Juvio`.
+- No fixed Steam app id anywhere (non-Steam shortcuts get random ids).
+
 ## 0.2.2 — 2026-11-04
 
 - Default `large_image` is `hon-transparent`, matching the verified asset key
