@@ -5,7 +5,7 @@
 ## Tested
 
 - [ ] `./tests/run_all.sh`
-- [ ] `python3 -m compileall -q .`
+- [ ] `cargo fmt --check`
 - [ ] in-game check (mode/map/queue) if the Lua bridge changed
 
 ## Presence impact

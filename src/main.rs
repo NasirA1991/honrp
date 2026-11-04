@@ -19,7 +19,7 @@ use activity::View;
 use config::Config;
 use run::{RunOpts, StateMachine};
 
-const MOD_SRC: &str = include_str!("../../../honrp_mod.lua");
+const MOD_SRC: &str = include_str!("../lua/honrp_mod.lua");
 const BEGIN: &str = "--- HONRP BEGIN ---";
 const END: &str = "--- HONRP END ---";
 

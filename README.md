@@ -3,6 +3,8 @@
 Discord Rich Presence for the current **Juvio / Heroes of Newerth** client
 (0.13.x) running through Steam Play / Proton on Linux.
 
+![The states honrp reports](demo_states.png)
+
 ```
 ┌──────────────────────────────────────────────┐
 │  Heroes of Newerth Reborn                    │
@@ -15,36 +17,88 @@ Two pieces:
 
 | piece | what it does |
 |---|---|
-| `honrp_mod.lua` | ~200 lines of Lua installed as `<Documents>/Juvio/Heroes of Newerth/startup.lua`. Runs in the game's own UI Lua VM and prints one `[HONRP] {json}` line per state change plus a 10 s heartbeat into `console.log`. |
-| `honrp.py` | Linux daemon. Finds `juvio.exe` in `/proc`, tails `console.log`, drives Discord's native `discord-ipc-N` unix socket. |
+| `honrp` | a single static Rust binary. Finds `juvio.exe` in `/proc`, tails the game's `console.log`, drives Discord's native `discord-ipc-N` unix socket. |
+| `lua/honrp_mod.lua` | the Lua bridge, installed as `<Documents>/Juvio/Heroes of Newerth/startup.lua`. Runs in the game's own UI Lua VM and prints one `[HONRP] {json}` line per state change plus a 10 s heartbeat. |
 
-Nothing in the game install directory is modified. The mod lives next to the
+Nothing in the game install directory is modified. The bridge lives next to the
 game's own settings files and is read by the engine at launch.
 
-![The states honrp reports](demo_states.png)
+## Install
 
-> **Project status:** reference implementation in Python. The static Rust port
-> and release plan are in [docs/PLAN.md](docs/PLAN.md); the Lua bridge and the
-> presence format are already final and shared by both.
-
-## Rust binary (in progress)
-
-`rust/honrp` is the static-binary port of the daemon — same Lua bridge, same
-presence format:
+### From a release
 
 ```bash
-cargo build --release --manifest-path rust/honrp/Cargo.toml
-./rust/honrp/target/release/honrp status --json
-./rust/honrp/target/release/honrp run          # after configuring client_id
+tar -xzf honrp-v0.2.0-x86_64-linux.tar.gz
+./honrp install
 ```
 
-Current release binary: ~**814 KB**, ~**6 MiB RSS** idle, 9 unit tests plus an
-end-to-end mock-Discord run (publish → clear on game exit). See
-[rust/README.md](rust/README.md) for the parity checklist.
+### From source
+
+```bash
+cargo build --release
+install -Dm755 target/release/honrp ~/.local/bin/honrp
+honrp install
+```
+
+`honrp install` detects the Proton prefix and Windows user directory, installs
+the Lua bridge (managed block, backup kept), writes a **systemd user unit** and
+starts it. No root, no files in the game install directory. Restart Heroes of
+Newerth afterwards so the engine loads the bridge.
+
+### Discord application
+
+1. Create an application at <https://discord.com/developers/applications> and
+   copy its **Application ID**.
+2. Optional but recommended: **Rich Presence → Art Assets** → upload
+   `assets/hon.png` with the asset name **`hon`**.
+3. Put the ID in `~/.config/honrp/config.json`:
+
+   ```json
+   {"client_id": "123456789012345678"}
+   ```
+
+   or export `HONRP_CLIENT_ID` for a one-off run.
+
+The card's application name is the name of your Discord application.
+
+## Usage
+
+```bash
+honrp status [--json]     # what the daemon sees right now
+honrp doctor              # detection, bridge build, Discord handshake, service
+honrp run -v              # run in the foreground (systemd runs this for you)
+honrp service status      # systemd user unit
+honrp uninstall           # remove the service and the Lua bridge
+```
+
+Config lives in `~/.config/honrp/config.json` (see `config.example.json`):
+
+| key | default | meaning |
+|---|---|---|
+| `client_id` | — | Discord application id (required) |
+| `large_image` | `hon` | Rich Presence asset key (empty disables art) |
+| `large_text` | `Heroes of Newerth` | art hover text |
+| `show_timer` | `false` | match/menu elapsed timer |
+| `show_kda` | `true` | `hero • Lv N • K/D/A` vs `hero • Lv N` |
+| `short_maps` | `true` | `FoW` instead of `Forests of Caldavar (Phoenix)` |
+| `poll_interval` | `1.0` | seconds between `/proc` polls |
+| `refresh_interval` | `300` | re-publish interval (asset/name propagation) |
+
+### Is it running?
+
+```bash
+systemctl --user status honrp     # active (running), journal included
+honrp status                      # game/queue/panel + current card
+journalctl --user -u honrp -f
+```
+
+There is no tray icon by default — a resident tray app would use more memory
+than the daemon. `status`/`doctor` are the indicator; a StatusNotifierItem
+indicator is on the roadmap.
 
 ## Privacy & transparency
 
-honrp is local-only and deliberately boring:
+honrp is local-only:
 
 - reads `console.log`, the client's `logs/game_*.log`, and `/proc` for the
   running `juvio.exe` — nothing else;
@@ -53,10 +107,8 @@ honrp is local-only and deliberately boring:
 - talks **only** to Discord's local unix socket — no HTTP, no telemetry;
 - never opens game memory, never reads input, never modifies the game install.
 
-The full list, including measured CPU/RAM and verification commands
-(`strace`, `ss`, `honrp doctor`), is in [PRIVACY.md](PRIVACY.md).
-
----
+Full list, measured resource use and verification commands (`strace`, `ss`,
+`honrp doctor`): [PRIVACY.md](PRIVACY.md).
 
 ## Why this works (reverse engineering notes)
 
@@ -147,7 +199,7 @@ The mod uses both: state changes emit immediately, the timers provide a 10 s hea
 So the data path is just:
 
 ```
-game Lua VM  --print-->  console.log  --tail-->  honrp.py  --unix socket-->  Discord
+game Lua VM  --print-->  console.log  --tail-->  honrp  --unix socket-->  Discord
 ```
 
 No memory reading, no ptrace, no DLL injection, no archive repacking, no
@@ -165,189 +217,27 @@ INFO_MAP name:"fieldtest" version:"0.0.0"
 INFO_SETTINGS mode:"Mode_Normal" options:"Option_None"
 ```
 
-`honrp.py` parses it for the map/mode and uses `INFO_DATE` as the presence
+the daemon parses it for the map/mode and uses `INFO_DATE` as the presence
 timestamp, so the elapsed clock matches the actual match.
 
 ---
 
-## Install
-
-```bash
-# 1. install the Lua bridge into the running Proton prefix
-python3 honrp.py install
-
-# 2. restart Heroes of Newerth (the engine reads startup.lua at launch)
-
-# 3. check that the bridge is alive (a JSON line per state change / 10 s)
-grep -a HONRP \
-  "$HOME/.steam/steam/steamapps/compatdata/2618010418/pfx/drive_c/users/steamuser/Documents/Juvio/Heroes of Newerth/console.log" | tail
-
-# 4. Discord application id (see below), then start the daemon
-python3 honrp.py run
-```
-
-`honrp.py install` auto-detects the game prefix by reading
-`STEAM_COMPAT_DATA_PATH`/`WINEPREFIX` from the running `juvio.exe`. Use
-`--user-dir '…/Heroes of Newerth'` to override.
-
-### Discord developer portal: what to fill in
-
-The app is only an identity for the activity, so almost every section can stay
-empty. Nothing here needs verification, a bot, or a public listing.
-
-| Portal section | What to do |
-|---|---|
-| **General Information → Name** | `Heroes of Newerth` — this is the literal "Playing …" title |
-| **General Information → Description / Tags** | optional; only used by the App Directory, not by presence. Leave blank or write anything |
-| **General Information → App Icon** | optional; shows as the app badge on the activity card. `assets/hon.png` works |
-| **Rich Presence → Art Assets** | the only required artwork: upload `assets/hon.png`, asset name `hon` |
-| **Installation** | Install Link → **None** (this is not an installable app) |
-| **Bot** | do **not** add one. A bot user/token is unnecessary for Rich Presence |
-| **OAuth2 / Webhooks / Emojis** | leave untouched; they are for bots and Activities |
-| **Activities / Embedded App / Monetization** | leave untouched |
-
-Nothing is verified or reviewed: an unverified private app can send Rich
-Presence indefinitely.
-
-### Discord application id
-
-Rich Presence needs an application id (this is how Discord knows the name and
-artwork to show):
-
-1. <https://discord.com/developers/applications> → **New Application**
-2. copy the **Application ID**
-3. optionally add a **Rich Presence asset** named `hon` (512×512) for the logo
-   — `assets/hon.png` in this repo is generated from the official
-   `ui/fe3/elements/reborn_logo.tga` client asset (the HoN Reborn wordmark);
-   upload it under **Rich Presence → Art Assets → Add Image(s)** and name the
-   asset `hon`. `assets/hon-transparent.png` is the same logo without the dark
-   backdrop, and `assets/hon@1024.jpg` is a 1024×1024 variant. Until the asset
-   exists Discord silently drops the `large_image` field (the presence still
-   works, just without the picture).
-4. put the id in `~/.config/honrp/config.json`:
-
-```json
-{
-  "client_id": "123456789012345678",
-  "large_image": "hon",
-  "large_text": "Heroes of Newerth"
-}
-```
-
-or export `HONRP_CLIENT_ID=123…`.
-
-The **application name** becomes the activity title in Discord ("Playing …"),
-so name the app `Heroes of Newerth` (or rename it later under General
-Information; the id does not change).
-
-Then `python3 honrp.py run` (add `-v` for verbose logs).
-
-### Autostart (optional)
-
-```bash
-mkdir -p ~/.config/systemd/user
-cat > ~/.config/systemd/user/honrp.service <<'EOF'
-[Unit]
-Description=Heroes of Newerth Discord Rich Presence
-After=graphical-session.target
-
-[Service]
-ExecStart=%h/path/to/honrp/honrp.py run
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=default.target
-EOF
-systemctl --user daemon-reload
-systemctl --user enable --now honrp
-```
-
----
-
-## Usage
-
-```
-honrp.py run [--client-id ID] [--ipc-socket PATH] [--dry-run] [-v]
-honrp.py status             # dump detected state + the activity it would send
-honrp.py install            # write startup.lua into the HoN user dir
-honrp.py uninstall          # remove the managed block again
-honrp.py mock-discord PATH  # fake Discord endpoint used by the tests
-```
-
-`--dry-run` prints the presence updates as JSON without touching Discord —
-handy when Discord is not running or the app id is not configured yet.
-
-```bash
-python3 honrp.py status | jq .state
-```
-
-`status` also reports `mod_installed` and `restart_needed` — if the Lua bridge
-was written after the current game process started, `restart_needed` is `true`
-and the daemon prints a reminder on start.
-
-### Is it running?
-
-The service is a normal systemd user unit:
-
-```bash
-systemctl --user status honrp     # active (running), logs in the journal
-python3 honrp.py status           # what it sees right now (game, queue, activity)
-journalctl --user -u honrp -f     # live
-```
-
-There is no tray icon by default — a resident tray app would use more memory
-than the daemon itself, and hoisting one is exactly the kind of hidden overhead
-this project avoids. An opt-in StatusNotifierItem indicator is on the roadmap;
-until then `status`/`doctor` are the indicator.
-
-## Repository layout
-
-```
-honrp.py            daemon (reference implementation)
-honrp_mod.lua       Lua bridge, installed as startup.lua
-assets/             Rich Presence art + generator (see assets/README.md)
-tests/              Python unit/integration tests + mocked K2 Lua harness
-docs/PLAN.md        Rust port, packaging and release plan
-PRIVACY.md          exactly what is read/written, resource use, verification
-```
 
 ## Tests
 
 ```bash
-./tests/run_all.sh          # everything
-python3 tests/test_honrp.py # daemon: log tailing, parsing, activity, Discord IPC
-lua5.1 tests/test_lua_mod.lua honrp_mod.lua   # mod: mocked K2 Lua environment
+cargo test                                              # 9 Rust unit tests
+lua5.1 tests/test_lua_mod.lua lua/honrp_mod.lua         # bridge, mocked K2 engine
+./tests/run_all.sh                                      # both
 ```
 
-The Python suite covers UTF-16LE log tailing, `[HONRP]` parsing, match-log
-parsing, fallback world-load detection, activity construction, and a full
-Discord IPC handshake + `SET_ACTIVITY` round-trip against an in-process mock
-endpoint.  The Lua suite runs the real `honrp_mod.lua` against mocked
-`println`/`GetTime`/`UIManager`/widget objects, both with `UIManager` present
-and in the `Main:GetWidget` fallback path, and checks the emitted JSON.
+The Rust suite covers activity building (ranked/FoW/hero/KDA, timer off,
+panels, spectator, long-map option), mod-state parsing and a real
+handshake + `SET_ACTIVITY` exchange over a unix socket. The Lua harness boots
+the bridge in a mocked engine, feeds HUD/panel/queue triggers and asserts the
+emitted lines.
 
-### What was verified vs. not
-
-Verified on this machine:
-
-* live discovery of the running `juvio.exe` (pid 1211678), its Proton prefix and
-  the `Documents/Juvio/Heroes of Newerth` directory;
-* `console.log` UTF-16LE tailing against the live log;
-* the full Discord IPC handshake and `SET_ACTIVITY` frames against a mock
-  endpoint;
-* the Lua mod under a mocked K2 Lua environment (`luac5.1 -p` clean);
-* the static hook evidence (`#/startup.lua` → `CLuaManager::ExecuteFile`) and
-  that the `-noconfig` guard bit is *not* set in the live run.
-
-Not yet verified: the in-game UICmd return values. The game was already
-running while this was built, and `startup.lua` is only read at engine start.
-After the next restart, `honrp.py status` should show `"source": "mod"` with
-`in_game`/`in_queue`/`hero`/`lobby_phase` populated; if it stays on
-`"fallback"`, check the `[HONRP]` lines in `console.log` (the boot line
-contains the hook state).
-
----
+## How the presence maps
 
 ## How the presence maps
 
@@ -366,8 +256,7 @@ contains the hook state).
 | Ladder / Profile / Match stats / MOTD / Learn | `Viewing …` | account name | session start |
 | game closed | *(activity cleared)* | | |
 
-`python3 demo_states.py` renders all of these with the daemon's own
-`build_activity()` (text table + `demo_states.png` gallery).
+`demo_states.png` is a pre-rendered gallery of these states.
 
 All labels are configurable — `short_maps` ("caldavar"/"caldavarphoenix" →
 `FoW`, `midwars` → `Mid Wars`, `fieldtest` → `Field Test`), `show_timer` (off by
@@ -404,51 +293,26 @@ inside `matchmaking.lua`), replay-vs-spectate distinction. KDA and level are
 read from the HUD's own triggers (`mid_bar.lua`, `bot_center.lua`), not from
 memory.
 
-### Resource usage (measured on this machine)
-
-| component | cost |
-|---|---|
-| `honrp.py` daemon | ~0.3 % of one core, ~15 MiB RSS; one `console.log` read + one `SET_ACTIVITY` per state change |
-| Lua bridge | event-driven + 10 s heartbeat: one console line (~40 B/s, ≈144 KB per hour of play, inside the game's existing `console.log`) |
-| Discord | `SET_ACTIVITY` only when the activity changes, at most every 5 s |
-
-The bridge emits **on state changes** (queue, lobby, hero pick, panels, kills,
-level-ups) and a **10 s heartbeat** otherwise: ~40 B/s / ≈144 KB per hour in a
-match instead of 1.4 MB/h at a 1 s cadence.
-
-No memory is read or written, nothing is injected into the render loop; the
-bridge rides the UI's existing Lua tick and the game's existing console log.
-
-### Presence lifecycle
-
-The daemon is a resident systemd user service, but it only opens the Discord
-IPC connection **while a game is running**. When HoN exits it sends a final
-`SET_ACTIVITY` with the *game's* pid and closes the socket, which guarantees
-Discord clears the card even if a clear payload is missed. It reconnects on the
-next launch. When no game is running the daemon is not connected to Discord at
-all (~0.3 % CPU polling for `juvio.exe`).
-
-Fallback when the mod is not installed: `Client loading world <map>` lines in
-`console.log` plus the newest `logs/game_*.log` are used for an in-match
-approximation; queue state, hero, ranked and panel states only work with the
-mod.
-
----
 
 ## Files it touches
 
-* `…/Documents/Juvio/Heroes of Newerth/startup.lua` — created/appended between
-  `--- HONRP BEGIN ---` / `--- HONRP END ---` markers; a `.honrp.bak` backup is
-  kept if the file already existed. `honrp.py uninstall` removes exactly the
-  managed block.
-* `~/.config/honrp/config.json` — optional, read-only for the daemon.
-* Discord IPC socket `$XDG_RUNTIME_DIR/discord-ipc-0` (or `-1`…`-9`).
+| path | why |
+|---|---|
+| `<prefix>/drive_c/users/<user>/Documents/Juvio/Heroes of Newerth/startup.lua` | the Lua bridge, inside a `--- HONRP BEGIN/END ---` block; existing content preserved and backed up |
+| `<user dir>/console.log` | read-only state transport from the bridge |
+| `<user dir>/logs/game_*.log` | read-only map/mode |
+| `~/.config/honrp/config.json` | configuration |
+| `~/.config/systemd/user/honrp.service` | user service |
+| `/proc/<pid>/comm`, `/proc/<pid>/cmdline`, `/proc/<pid>/environ` | find `juvio.exe` and its prefix |
+| `$XDG_RUNTIME_DIR/discord-ipc-*` | local Discord socket |
+
+## Limitations / caveats
 
 ## Limitations / caveats
 
 * **Restart required** after installing the Lua bridge.
 * The bridge was developed against the 0.13.3.0 client; a client update can
-  change or remove the `startup.lua` hook or UICmd names. `honrp.py status`
+  change or remove the `startup.lua` hook or UICmd names. `honrp status`
   shows what is still resolvable (`source: "mod"` vs `"fallback"`).
 * `GetCurrentGamePhase()` returns a raw `EGameServerPhase` integer. It is
   logged but not currently rendered as text; the readable phase text comes from
@@ -463,6 +327,23 @@ mod.
   integrity rules ever change.
 * Discord must be running with its IPC socket available. Flatpak/Discord
   variants are covered by the socket search paths in `discord_sockets()`.
+
+
+## Repository layout
+
+```
+Cargo.toml, src/      daemon (Rust)
+lua/honrp_mod.lua     bridge, installed as startup.lua
+assets/               Rich Presence art (see assets/README.md)
+tests/                Lua harness
+docs/PLAN.md          release/packaging notes
+PRIVACY.md            exact read/write/network surface
+```
+
+## License
+
+MIT — see [LICENSE](LICENSE). The art in `assets/` is derived from HoN/Juvio
+artwork; see [assets/README.md](assets/README.md).
 
 ## Other injection points found (for future work)
 

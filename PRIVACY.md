@@ -41,7 +41,7 @@ entire point of the tool; nothing else leaves the machine.
 
 | piece | cost |
 |---|---|
-| daemon RSS | ~15 MiB (Python prototype); Rust port targets 4–8 MiB |
+| daemon RSS | ~3–6 MiB (measured 3.0 MiB idle, no game attached) |
 | daemon CPU | ~0.3 % of one core while idle, <0.5 % during play |
 | bridge | one state line per event, 10 s heartbeat; ~40 B/s ≈ 144 KB/h of play |
 | Discord traffic | one `SET_ACTIVITY` per change, at most every 5 s, only while a game runs |

@@ -1,7 +1,7 @@
 # Art assets
 
-`hon.png` (512×512), `hon-transparent.png` and `hon@1024.jpg` are generated
-from the **Heroes of Newerth: Reborn** client logo
+`hon.png` (512×512), `hon-transparent.png` and `hon@1024.jpg` are derived from
+the **Heroes of Newerth: Reborn** client logo
 (`ui/fe3/elements/reborn_logo.tga` inside `resources0.jz`) and are used as the
 Discord Rich Presence `large_image` under the asset key **`hon`**.
 
@@ -10,17 +10,8 @@ for personal use with the game; if you redistribute this repository publicly,
 review that or replace them with your own neutral artwork. The raw 1024×1024
 TGA is intentionally not committed.
 
-Regenerate (requires Pillow and a local game install):
-
-```bash
-# extract the logo from your own install
-python3 - <<'PY'
-import zipfile
-z = zipfile.ZipFile("/path/to/heroes of newerth/resources0.jz")
-open("reborn_logo.tga", "wb").write(z.read("ui/fe3/elements/reborn_logo.tga"))
-PY
-python3 make_asset.py reborn_logo.tga
-```
-
-Upload `hon.png` in the Discord developer portal under
-**Rich Presence → Art Assets**, asset name **`hon`**.
+To regenerate from your own install: extract
+`ui/fe3/elements/reborn_logo.tga` from `resources0.jz` with any ZIP tool and
+convert it to a 512×512 PNG with your image editor, then upload it in the
+Discord developer portal under **Rich Presence → Art Assets** with the name
+**`hon`**.

@@ -4,21 +4,25 @@
 
 | path | contents |
 |---|---|
-| `honrp.py` | reference daemon (Python prototype; the Rust port will replace it) |
-| `honrp_mod.lua` | Lua bridge installed as `startup.lua`; keep it Lua 5.1-compatible and dependency-free |
-| `assets/` | Rich Presence art + generator (see `assets/README.md`) |
-| `tests/` | Python unit/integration tests + mocked K2 Lua harness |
-| `docs/PLAN.md` | Rust port and release plan |
+| `src/` | the daemon (Rust): detection, log tail, state, presence, Discord IPC |
+| `lua/honrp_mod.lua` | the Lua bridge, installed as `startup.lua`; Lua 5.1, dependency-free |
+| `assets/` | Rich Presence art (see `assets/README.md`) |
+| `tests/` | mocked-K2 Lua harness |
+| `docs/PLAN.md` | packaging and release notes |
 
 ## Development
 
 ```bash
-python3 tests/test_honrp.py          # daemon: parsing, activity, Discord IPC
-lua5.1 tests/test_lua_mod.lua honrp_mod.lua   # bridge under a mocked engine
-./tests/run_all.sh                   # both
+cargo test
+lua5.1 tests/test_lua_mod.lua lua/honrp_mod.lua
+./tests/run_all.sh          # both
+cargo fmt
+./target/release/honrp status --json
 ```
 
-There are no third-party Python dependencies; the Lua harness needs `lua5.1`.
+The Rust tests cover activity building, state parsing and the Discord IPC
+handshake/`SET_ACTIVITY` exchange over a real unix socket. The Lua harness runs
+the bridge in a mocked engine and asserts the emitted `[HONRP]` lines.
 
 ## Changing the Lua bridge
 
@@ -33,9 +37,9 @@ There are no third-party Python dependencies; the Lua harness needs `lua5.1`.
 
 ## Pull requests
 
-- Run `./tests/run_all.sh` and `python3 -m compileall -q .`.
+- Run `./tests/run_all.sh` and `cargo fmt --check`.
 - Keep the presence payload under Discord's 128-character fields.
-- New state labels go through `build_activity()` and get a test.
+- New state labels go through `build_activity()` and get a Rust test.
 - Describe what you tested in-game (mode, map, queue) and paste the
   `[HONRP]` line if it changed.
 

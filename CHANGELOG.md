@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.0 — 2026-11-04
+
+Pure Rust.
+
+- Python daemon removed; the `honrp` crate now lives at the repository root.
+- `install.sh` builds from source and runs `honrp install`; tag releases build a
+  static musl binary.
+- `honrp` commands: `run`, `status [--json]`, `doctor`, `install`, `uninstall`,
+  `service install|uninstall|status`.
+- Measured: 814 KB release binary, 3.0 MiB RSS idle, no Discord connection while
+  HoN is closed.
+- CI: Rust tests/build + Lua bridge harness.
+
 ## Unreleased
 
 - Rust port MVP (`rust/honrp`): `/proc` + prefix detection, UTF-16LE log tail
@@ -23,5 +36,5 @@ Initial prototype.
   default.
 - 10 s heartbeat + event-driven emits; log flush per emit.
 - Discord connection only while a game runs; clear-on-exit with the game's pid.
-- Tests: Python (22) + Lua harness (mocked K2 environment).
+- Tests: 22 unit tests + Lua harness (mocked K2 environment).
 - Packaging: static-binary release plan and Rust port tracked in docs/PLAN.md.

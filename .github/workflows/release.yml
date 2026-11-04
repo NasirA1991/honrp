@@ -21,14 +21,15 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y musl-tools
 
       - name: Build static binary
-        run: cargo build --release --target x86_64-unknown-linux-musl --manifest-path rust/honrp/Cargo.toml
+        run: cargo build --release --target x86_64-unknown-linux-musl
 
       - name: Package
         run: |
           mkdir -p dist
-          cp rust/honrp/target/x86_64-unknown-linux-musl/release/honrp dist/
-          cp honrp_mod.lua dist/
+          cp target/x86_64-unknown-linux-musl/release/honrp dist/
+          mkdir -p dist/lua && cp lua/honrp_mod.lua dist/lua/
           cp -r assets dist/ 2>/dev/null || true
+          cp config.example.json dist/
           tar -czf "honrp-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" -C dist .
           sha256sum "honrp-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" > checksums.txt
 

@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# Install the honrp Lua state bridge into the running HoN (Wine/Proton) install.
+# Build honrp from a source checkout and install it for the current user.
+# For release tarballs, run `honrp install` directly instead.
 set -euo pipefail
-cd "$(dirname "$0")"
-python3 honrp.py install "$@"
-python3 honrp.py status || true
-cat <<'EOF'
 
-Next:
-  1. restart Heroes of Newerth  (the mod is read by CHost::Init at launch)
-  2. verify inside the game log:
-       grep -a HONRP "<prefix>/drive_c/users/<user>/Documents/Juvio/Heroes of Newerth/console.log"
-  3. start the daemon:
-       python3 honrp.py run
-EOF
+here="$(cd "$(dirname "$0")" && pwd)"
+cd "$here"
+
+if ! command -v cargo >/dev/null 2>&1; then
+  echo "cargo is required to build from source." >&2
+  echo "Download a release binary from https://github.com/NasirA1991/honrp/releases" >&2
+  exit 1
+fi
+
+cargo build --release
+install -Dm755 target/release/honrp "$HOME/.local/bin/honrp"
+echo "installed $HOME/.local/bin/honrp"
+"$HOME/.local/bin/honrp" install

@@ -1,15 +1,16 @@
 # honrp — Rust port & release plan
 
-Status: planning. The Python prototype in this directory is the behavioural
-reference; the Lua bridge (`honrp_mod.lua`, installed as `startup.lua`) is
-already the final design and is shared by both implementations.
+Status: the Rust implementation (repo root, v0.2.0) is the shipping code. The
+earlier Python prototype was removed after the port and remains in git history
+as a behavioural reference. The Lua bridge (`lua/honrp_mod.lua`, installed as
+`startup.lua`) is unchanged and shared by both.
 
 ---
 
 ## 0. Goals
 
-1. Replace the Python daemon with a small static Rust binary (target **4–8 MiB
-   RSS**, ~2–3 MB binary) with identical behaviour.
+1. Ship a small static Rust binary (measured **814 KB**, ~3–6 MiB RSS) with
+   the same behaviour.
 2. Make installation foolproof on any Steam/Proton setup: no hardcoded paths,
    no assumptions about where HoN lives, one `honrp setup` command.
 3. Ship it: versioned releases, packaging, CI, docs, a project-owned Discord
@@ -56,7 +57,7 @@ assets/
   hon.png        Rich Presence asset (also shipped in the release tarball)
 ```
 
-### 1.3 Behaviour port checklist (parity with the Python version)
+### 1.3 Behaviour port checklist (reference: the removed prototype)
 
 - [ ] process discovery: `/proc/<pid>/comm` == `juvio.exe`, `/proc/<pid>/environ`
 - [ ] console.log tail: UTF-16LE, BOM, partial lines, truncation/rotation
@@ -245,15 +246,15 @@ Exit code 0 only when everything is green — useful in bug reports.
 ### Phase 0 — polish the prototype (now)
 - shorten map names, timer off by default, optional KDA line
 - verify the `hon` art asset resolves (Discord currently drops `large_image`)
-- keep the Python daemon usable while the Rust version is developed
+- replace the Python daemon with the Rust binary
 
 ### Phase 1 — Rust MVP (parity) — **mostly done, in `rust/honrp`**
 - [x] detection, tail (EOF start), activity, IPC, clear-on-exit
 - [x] status/doctor/install/service, 9 unit tests + mock-Discord e2e
-- [ ] parity pass against the Python daemon (fallback heuristics, restart hint)
+- [ ] parity pass against the removed prototype (fallback heuristics, restart hint)
 - [ ] port all unit tests
 - mock-Discord integration test (`tests/e2e_demo.py` equivalent in Rust)
-- `doctor` side-by-side with the Python version on this machine
+- `doctor` side-by-side with the removed prototype on this machine
 - feature flag to run both and diff activities
 
 ### Distribution strategy (cross-distro, no root)
@@ -358,7 +359,7 @@ The daemon's 40 s staleness threshold is comfortably above the heartbeat.
 ## 10. Risks / edge cases
 
 - Discord RPC can be slow right after a Discord restart → 8 s handshake timeout,
-  retry with backoff, republish on reconnect (already handled in Python).
+  retry with backoff, republish on reconnect (already handled).
 - Multiple stale prefixes (this machine has 5) → process env wins; never guess
   from the first hit on disk.
 - Steam Flatpak prefixes/sockets → include `~/.var/app/...` paths.
