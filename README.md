@@ -1,160 +1,101 @@
 # honrp
 
 [![CI](https://github.com/NasirA1991/honrp/actions/workflows/ci.yml/badge.svg)](https://github.com/NasirA1991/honrp/actions/workflows/ci.yml)
+[![AUR](https://img.shields.io/aur/version/honrp-bin?label=AUR)](https://aur.archlinux.org/packages/honrp-bin)
 
-Discord Rich Presence for **Heroes of Newerth** (the Juvio client, 0.13.x)
-running through Steam Play / Proton on Linux.
-
-It shows the game state on your Discord profile — not just "playing HoN":
+Discord Rich Presence for **Heroes of Newerth** (the Juvio client) on Linux —
+Steam/Proton, Lutris, Heroic, Faugus, Bottles, or plain Wine.
 
 | state | card |
 |---|---|
 | Main menu | `Main Menu` · account |
-| Searching | `Searching for a match` · `In queue` |
-| In a match | `Ranked • FoW • Banning Pick` · `Pyromancer • Lv 12 • 4/2/7` |
+| Queue | `Searching for a match` · `In queue` |
+| Match | `Ranked • FoW • Banning Pick` · `Pyromancer • Lv 12 • 4/2/7` |
 | Hero select | `Ranked • FoW • All Pick` · `Hero Select` |
 | Spectating | `Spectating • FoW` · `Watching Master Of Arms` |
 | Plinko | `Playing Plinko` · account |
 
-## Quick install
+## Install
 
 ```bash
 curl -fsSL https://github.com/NasirA1991/honrp/releases/latest/download/install.sh | bash
 ```
 
-That downloads the static binary to `~/.local/bin/honrp`, installs the Lua
-bridge into your Proton prefix, and enables a systemd **user** service — no
-root, no files touched in the game install directory. The card uses honrp's
-built-in Discord application, so there is no Discord app to create. Then
-restart Heroes of Newerth.
+Arch Linux: `paru -S honrp-bin` (or `yay -S honrp-bin`), then run `honrp install`.
 
-<details>
-<summary>Manual / from source</summary>
+From source:
 
 ```bash
-# release binary
-curl -fLO https://github.com/NasirA1991/honrp/releases/latest/download/honrp-linux-x86_64
-chmod +x honrp-linux-x86_64 && ./honrp-linux-x86_64 install
-
-# or build it
 cargo build --release
 install -Dm755 target/release/honrp ~/.local/bin/honrp
 honrp install
 ```
-</details>
 
-## How it finds HoN
+`honrp install` finds your Proton/Wine prefix, adds the Lua bridge to
+`startup.lua`, and installs a systemd **user** service — no root, nothing in the
+game install directory. Restart Heroes of Newerth afterwards. A Discord app id
+is built in, so you don't need to create a Discord application.
 
-No hardcoded paths. `honrp install` and the daemon resolve the prefix in this
-order:
+## Finding HoN
 
-1. **Running game (exact)** — scan `/proc` for `juvio.exe`, read its
-   environment:
-   - `STEAM_COMPAT_DATA_PATH` → the exact Proton prefix
-     (`.../steamapps/compatdata/<appid>/pfx`),
-   - `WINEPREFIX` as a fallback.
+No hardcoded Steam library or app id:
 
-   This works for any Steam app id, including **non-Steam shortcuts** (Steam
-   assigns those a random id), and is independent of where HoN lives or how
-   many stale prefixes exist.
-2. **Not running (best effort)** — scan:
-   - the default Steam roots and every library in `libraryfolders.vdf`, looking
-     inside **every** `steamapps/compatdata/*/pfx` (not a fixed app id); the
-     Flatpak Steam path is included;
-   - `~/.wine`, `$WINEPREFIX` and Lutris-style `~/Games/*` prefixes.
+- **Running:** read `WINEPREFIX` / `STEAM_COMPAT_DATA_PATH` from `juvio.exe`,
+  or recover the prefix from the `drive_c` path in `/proc/<pid>/maps` — works
+  for any launcher.
+- **Not running:** scan every Steam `compatdata/*/pfx`, Lutris and Heroic game
+  configs, Bottles, `~/Games`, `~/.wine`, `$WINEPREFIX`, plus a bounded scan of
+  your home for `drive_c/users/*/Documents/Juvio/Heroes of Newerth`.
+- **Override:** `honrp install --prefix /path/to/pfx` (or `--user-dir`).
+  `honrp doctor` lists every candidate and the newest `console.log`.
 
-   Inside each prefix it looks at `drive_c/users/*/Documents/Juvio/Heroes of
-   Newerth` (the Windows username can be anything), canonicalizes symlinks so
-   duplicate library paths collapse to one, and picks the user dir with the
-   newest `console.log`.
-3. **Override when needed**:
-
-   ```bash
-   honrp install --prefix /path/to/pfx
-   # or point straight at the docs dir:
-   honrp install --user-dir "/path/to/pfx/drive_c/users/<user>/Documents/Juvio/Heroes of Newerth"
-   ```
-
-`honrp doctor` prints every candidate prefix/user dir it found, the
-`console.log` age, and which one it picked — paste that into an issue if
-detection fails.
-
-There is no fixed Steam app id to rely on: a non-Steam shortcut gets a random
-one, and a manually installed client has no `compatdata` entry at all. That's
-why the running-process environment is preferred whenever it's available, and
-why every `compatdata` prefix is scanned otherwise. If neither finds the game,
-use `--prefix` / `--user-dir` (or start HoN once so the prefix exists).
-
-## Discord app
-
-honrp ships with a **built-in Discord application id**, so users don't need to
-create their own Discord app. The card's name and icon come from that app.
-
-If you want a custom name or artwork:
-
-1. Create an application at <https://discord.com/developers/applications> and
-   copy its **Application ID** (this id is public, not a token/secret).
-2. Put it in `~/.config/honrp/config.json`:
-
-   ```json
-   {"client_id": "123456789012345678"}
-   ```
-
-   or run `honrp install --client-id <ID>`.
-3. Optional: upload an image under **Rich Presence → Art Assets** with the
-   name `hon-transparent` (or set `large_image` to whatever name you use); no
-   artwork is shipped in this repo.
-
-The built-in id is only a default: `client_id` / `HONRP_CLIENT_ID` overrides it.
-
-## After install
-
-Restart Heroes of Newerth once — the engine reads the bridge at startup. Then:
+## Commands
 
 ```bash
-honrp status          # game/queue/panel + the card it would send
-honrp doctor          # prefix, bridge build, Discord handshake, service
-journalctl --user -u honrp -f
+honrp status [--json]     # current game state and the card it would send
+honrp doctor              # prefix, bridge build, Discord handshake, service
+honrp run -v              # foreground (systemd runs this normally)
+honrp uninstall           # remove the service and the Lua bridge
+honrp service status
 ```
 
-The daemon only connects to Discord while HoN is running. When the game exits
-it clears the card and disconnects; when HoN is closed, `ss -xp | grep
-discord-ipc` shows no connection from `honrp`.
+The daemon connects to Discord only while HoN is running; when the game exits
+it clears the card and disconnects. It idles at ~1.6 MiB RSS with no Discord
+connection.
+
+## Configuration
+
+`~/.config/honrp/config.json` (see `config.example.json`):
+
+| key | default | |
+|---|---|---|
+| `client_id` | built-in | Discord application id (override if you want your own app) |
+| `large_image` | `hon-transparent` | Rich Presence asset key; empty disables art |
+| `show_kda` | `true` | `hero • Lv • K/D/A` vs `hero • Lv` |
+| `show_timer` | `false` | match/menu timer |
+| `short_maps` | `true` | `FoW` instead of `Forests of Caldavar (Phoenix)` |
+
+### Custom Discord app (optional)
+
+1. Create an app at <https://discord.com/developers/applications>, copy its
+   Application ID.
+2. Put `{"client_id": "..."}` in the config (or `honrp install --client-id ...`).
+3. Optional: upload an image as a Rich Presence asset named `hon-transparent`.
 
 ## Troubleshooting
 
 | symptom | fix |
 |---|---|
-| `no prefix found` | start HoN once, or use `--prefix` / `--user-dir` |
-| wrong prefix chosen | same flags; `honrp doctor` lists all candidates |
-| card stuck on `Main Menu` | bridge not loaded/old build: restart HoN, check `doctor` |
-| no art on the card | upload an asset named `hon`, or clear `large_image` |
-| Discord lists `honrp` as a game | Settings → Game Activity → Registered Games → remove it (the card comes from the app, not detection) |
-
-## Configuration
-
-`~/.config/honrp/config.json` (or `HONRP_CLIENT_ID` for a one-off run):
-
-| key | default | meaning |
-|---|---|---|
-| `client_id` | — | Discord application id |
-| `large_image` | `hon-transparent` | Rich Presence asset key; empty disables art |
-| `large_text` | `Heroes of Newerth` | art hover text |
-| `show_timer` | `false` | match/menu elapsed timer |
-| `show_kda` | `true` | `hero • Lv • K/D/A` vs `hero • Lv` |
-| `short_maps` | `true` | `FoW` instead of `Forests of Caldavar (Phoenix)` |
-| `poll_interval` | `1.0` | seconds between `/proc` polls |
-| `refresh_interval` | `300` | re-publish interval |
-
-`honrp install`, `uninstall`, `status`, `doctor`, `run`, `service` are the
-commands; `honrp --help` lists flags.
+| no prefix found | start HoN once, or use `--prefix` / `--user-dir` |
+| wrong prefix | same flags; `honrp doctor` shows all candidates |
+| card stuck on `Main Menu` | bridge not loaded: restart HoN, check `doctor` |
+| no art | upload `hon-transparent` in the portal, or clear `large_image` |
 
 ## Privacy
 
-Local only. Reads `console.log`, `logs/game_*.log` and `/proc`; writes the
-managed `startup.lua` block, `~/.config/honrp/config.json` and a systemd user
-unit; talks only to Discord's local unix socket. No telemetry, no game memory,
-no input, no changes to the game install. Full detail:
+Reads `console.log`, `logs/game_*.log` and `/proc`; writes the managed
+`startup.lua` block, config and a user unit; talks only to Discord's local unix
+socket. No telemetry, no game memory, no game files changed. Details:
 [PRIVACY.md](PRIVACY.md).
 
 ## Development
@@ -162,13 +103,12 @@ no input, no changes to the game install. Full detail:
 ```bash
 cargo test
 lua5.1 tests/test_lua_mod.lua lua/honrp_mod.lua
-./tests/run_all.sh
 ```
 
-The Lua bridge is [lua/honrp_mod.lua](lua/honrp_mod.lua); the reverse-engineering
-notes (how the state gets out of the engine) are in
-[docs/REVERSE_ENGINEERING.md](docs/REVERSE_ENGINEERING.md).
+Bridge: [lua/honrp_mod.lua](lua/honrp_mod.lua) · how it works:
+[docs/REVERSE_ENGINEERING.md](docs/REVERSE_ENGINEERING.md) ·
+[AUR packaging](packaging/aur).
 
 ## License
 
-MIT. Not affiliated with Juvio or Discord.
+MIT — not affiliated with Juvio or Discord.
