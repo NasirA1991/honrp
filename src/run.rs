@@ -131,9 +131,10 @@ impl StateMachine {
             self.log_key = None;
             self.first_poll = true;
             self.fallback_in_game = false;
-            if let Some(t) = self.tail.as_mut() {
-                t.reset();
-            }
+            // Re-resolve the user dir from the new process's prefix: another
+            // game instance may run from a different Proton/Wine prefix.
+            self.tail = None;
+            self.user_dir = None;
         }
         self.ensure_tail(game.prefix.as_deref());
 

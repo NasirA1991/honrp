@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.7 — 2026-11-05
+
+Rust fixes from an external review of the old Python prototype (the review
+covered code that no longer exists; these points did carry over):
+
+- Spectate detection no longer false-positives when `GetLocalHeroName()` is
+  empty in a local/practice game: same local/view client now means playing.
+- The daemon re-resolves the prefix/user dir when the game process changes,
+  instead of keeping the previous prefix's `console.log`.
+- Discord socket discovery also checks Vesktop and Snap Discord runtime paths.
+- Complete `config.example.json`; Lua harness no longer assigns a stray global.
+- The leftover Python working copy was deleted; the repo and releases are
+  Rust-only.
+
 ## 0.2.6 — 2026-11-04
 
 - Non-systemd support: `honrp install` falls back to

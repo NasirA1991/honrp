@@ -116,6 +116,7 @@ assert(qline:find('"world":"midwars"'), 'lobby trigger world missing: ' .. qline
 
 local emissions = 0
 local saw_hero = false
+local escaped = false
 for _, line in ipairs(out) do
   if line:find('^%[HONRP%] {') then
     emissions = emissions + 1

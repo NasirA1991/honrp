@@ -49,12 +49,15 @@ pub fn is_spectating(v: &View) -> bool {
     if !in_match(v) {
         return false;
     }
-    if let (Some(l), Some(w)) = (v.local_client, v.view_client) {
-        if l != w {
-            return true;
-        }
+    match (v.local_client, v.view_client) {
+        // A different viewed client is the strong signal. Same client means we
+        // are playing, even if GetLocalHeroName() is empty (local/practice).
+        (Some(local), Some(view)) => local != view,
+        // Without client ids, only use the hero hint for a viewer we know
+        // exists (view hero but no local hero).
+        (None, Some(_)) => v.hero.is_empty() && !v.view_hero.is_empty(),
+        _ => false,
     }
-    v.hero.is_empty() && !v.view_hero.is_empty()
 }
 
 fn ranked(v: &View) -> &'static str {
@@ -427,6 +430,23 @@ mod tests {
         let a = build(&v, &cfg()).unwrap();
         assert_eq!(a.details, "Spectating \u{2022} FoW");
         assert_eq!(a.state, "Watching Master Of Arms");
+    }
+
+    #[test]
+    fn practice_with_empty_local_hero_is_not_spectating() {
+        let v = View {
+            in_game: true,
+            local_client: Some(0),
+            view_client: Some(0),
+            hero: "",
+            view_hero: "Hero_Pyromancer",
+            map: "caldavar",
+            ..view()
+        };
+        assert!(!is_spectating(&v));
+        let a = build(&v, &cfg()).unwrap();
+        assert_eq!(a.details, "FoW");
+        assert_eq!(a.state, "Pyromancer");
     }
 
     #[test]

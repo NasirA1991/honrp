@@ -35,10 +35,21 @@ pub fn socket_paths(override_path: Option<&str>) -> Vec<PathBuf> {
     let uid = unsafe { libc::getuid() };
     dirs.push(PathBuf::from(format!("/run/user/{uid}")));
     dirs.push(PathBuf::from("/tmp"));
+    if let Ok(runtime) = std::env::var("XDG_RUNTIME_DIR") {
+        let runtime = PathBuf::from(runtime);
+        // Vesktop (native/Flatpak) and Snap Discord keep their sockets in
+        // nested runtime directories.
+        dirs.push(runtime.join("vesktop"));
+        dirs.push(runtime.join("snap.discord"));
+        dirs.push(runtime.join("app/dev.vencord.Vesktop"));
+        dirs.push(runtime.join("app/com.vesktop.vencord.Vesktop"));
+    }
     if let Some(home) = std::env::var_os("HOME") {
         let home = PathBuf::from(home);
         dirs.push(home.join(".var/app/com.discordapp.Discord/config/discord"));
         dirs.push(home.join(".var/app/com.discordapp.Discord/tmp"));
+        dirs.push(home.join("snap/discord/current/.config/discord"));
+        dirs.push(home.join(".var/app/dev.vencord.Vesktop/config/vesktop"));
     }
     let mut out = Vec::new();
     for dir in dirs {
