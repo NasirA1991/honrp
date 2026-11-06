@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2 — 2026-11-06
+
+- Windows `install` works before the first game launch: if
+  `Documents\Juvio\Heroes of Newerth` does not exist yet it is created (or
+  pass `--user-dir` explicitly).
+
 ## 0.3.1 — 2026-11-06
 
 - Windows zip is built with the static MSVC CRT, so it no longer needs

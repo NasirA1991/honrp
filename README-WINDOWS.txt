@@ -17,7 +17,9 @@ Setup
        %USERPROFILE%\Documents\Juvio\Heroes of Newerth\startup.lua
 
    It does not touch the Heroes of Newerth install directory and does not
-   require administrator rights. If detection fails, pass the folder:
+   require administrator rights. If Documents/Juvio does not exist yet, the
+   installer creates it (the game will pick it up on the next launch). You can
+   also pass the folder explicitly:
 
        honrp.exe install --user-dir "%USERPROFILE%\Documents\Juvio\Heroes of Newerth"
 

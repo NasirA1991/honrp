@@ -315,7 +315,12 @@ fn install(
     client_id: Option<String>,
     no_service: bool,
 ) -> Result<()> {
-    let Some(ud) = resolve_user_dir(user_dir, prefix) else {
+    #[cfg(windows)]
+    let user_dir = resolve_user_dir(user_dir, prefix)
+        .or_else(|| dirs::document_dir().map(|docs| docs.join("Juvio").join("Heroes of Newerth")));
+    #[cfg(unix)]
+    let user_dir = resolve_user_dir(user_dir, prefix);
+    let Some(ud) = user_dir else {
         bail!(
             "could not find the Heroes of Newerth user directory.\n\
              Start HoN once, or pass --prefix '<pfx>' / --user-dir '<dir>'"
@@ -409,6 +414,7 @@ fn strip_managed(mut text: String) -> String {
 }
 
 fn mod_install(ud: &Path) -> Result<PathBuf> {
+    fs::create_dir_all(ud).with_context(|| format!("creating {}", ud.display()))?;
     let target = ud.join("startup.lua");
     let existing = fs::read_to_string(&target).unwrap_or_default();
     let user_part = strip_managed(existing);
