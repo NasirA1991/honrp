@@ -1,13 +1,23 @@
+#[cfg(windows)]
+use std::fs::File;
 use std::io::{Read, Write};
+#[cfg(unix)]
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+#[cfg(unix)]
+use std::time::Duration;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, Result};
 use serde_json::{json, Value};
 
 static NONCE: AtomicU64 = AtomicU64::new(0);
+
+#[cfg(unix)]
+type Stream = UnixStream;
+#[cfg(windows)]
+type Stream = File;
 
 fn unique_nonce() -> String {
     let n = NONCE.fetch_add(1, Ordering::Relaxed);
@@ -18,6 +28,7 @@ fn unique_nonce() -> String {
     format!("{t}-{n}")
 }
 
+#[cfg(unix)]
 pub fn socket_paths(override_path: Option<&str>) -> Vec<PathBuf> {
     if let Some(p) = override_path {
         if !p.is_empty() {
@@ -68,14 +79,27 @@ pub fn socket_paths(override_path: Option<&str>) -> Vec<PathBuf> {
     out
 }
 
+#[cfg(windows)]
+pub fn socket_paths(override_path: Option<&str>) -> Vec<PathBuf> {
+    if let Some(p) = override_path {
+        if !p.is_empty() {
+            return vec![PathBuf::from(p)];
+        }
+    }
+    (0..10)
+        .map(|i| PathBuf::from(format!(r"\\.\pipe\discord-ipc-{i}")))
+        .collect()
+}
+
 pub struct DiscordIpc {
-    stream: UnixStream,
+    stream: Stream,
 }
 
 impl DiscordIpc {
     pub fn connect(client_id: &str, override_path: Option<&str>) -> Result<Self> {
         let mut errors: Vec<String> = Vec::new();
         for path in socket_paths(override_path) {
+            #[cfg(unix)]
             if !path.exists() {
                 continue;
             }
@@ -94,6 +118,7 @@ impl DiscordIpc {
         }
     }
 
+    #[cfg(unix)]
     fn connect_to(path: &Path, client_id: &str) -> Result<Self> {
         let stream = UnixStream::connect(path)?;
         stream.set_read_timeout(Some(Duration::from_secs(8)))?;
@@ -109,6 +134,23 @@ impl DiscordIpc {
                     .unwrap_or("handshake rejected")
             )),
             _ => Err(anyhow!("handshake timed out")),
+        }
+    }
+
+    #[cfg(windows)]
+    fn connect_to(path: &Path, client_id: &str) -> Result<Self> {
+        let stream = File::options().read(true).write(true).open(path)?;
+        let mut ipc = Self { stream };
+        ipc.send(0, &json!({ "v": 1, "client_id": client_id }))?;
+        match ipc.read_frame()? {
+            Some(msg) if msg.get("evt").and_then(Value::as_str) == Some("READY") => Ok(ipc),
+            Some(msg) if msg.get("evt").and_then(Value::as_str) == Some("ERROR") => Err(anyhow!(
+                "{}",
+                msg.pointer("/data/message")
+                    .and_then(Value::as_str)
+                    .unwrap_or("handshake rejected")
+            )),
+            _ => Err(anyhow!("handshake failed")),
         }
     }
 
@@ -149,7 +191,14 @@ impl DiscordIpc {
             "args": { "pid": pid, "activity": activity },
             "nonce": unique_nonce(),
         });
-        self.send(1, &payload)
+        self.send(1, &payload)?;
+        #[cfg(windows)]
+        {
+            // Windows named pipes have no read timeout/nonblocking mode; read
+            // the acknowledgement so the pipe does not fill up over time.
+            let _ = self.read_frame();
+        }
+        Ok(())
     }
 
     pub fn clear(&mut self, pid: i32) -> Result<()> {
@@ -157,6 +206,7 @@ impl DiscordIpc {
     }
 
     /// Read pending replies without blocking for long.
+    #[cfg(unix)]
     pub fn drain(&mut self) {
         if self.stream.set_nonblocking(true).is_err() {
             return;
@@ -169,9 +219,12 @@ impl DiscordIpc {
         }
         let _ = self.stream.set_nonblocking(false);
     }
+
+    #[cfg(windows)]
+    pub fn drain(&mut self) {}
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
     use std::io::Write;
@@ -200,27 +253,18 @@ mod tests {
                 let len = u32::from_le_bytes([hdr[4], hdr[5], hdr[6], hdr[7]]) as usize;
                 let mut body = vec![0u8; len];
                 conn.read_exact(&mut body).unwrap();
-                assert_eq!(op, i as u32); // handshake then frame
+                assert_eq!(op, i as u32);
                 let msg: Value = serde_json::from_slice(&body).unwrap();
                 frames.push(msg);
-                if i == 0 {
-                    let resp = serde_json::to_vec(&json!({
-                        "cmd": "DISPATCH", "evt": "READY", "data": {"v": 1}
-                    }))
-                    .unwrap();
-                    let mut out = Vec::new();
-                    out.extend_from_slice(&1u32.to_le_bytes());
-                    out.extend_from_slice(&(resp.len() as u32).to_le_bytes());
-                    out.extend_from_slice(&resp);
-                    conn.write_all(&out).unwrap();
-                } else {
-                    let resp = serde_json::to_vec(&json!({"cmd":"SET_ACTIVITY"})).unwrap();
-                    let mut out = Vec::new();
-                    out.extend_from_slice(&1u32.to_le_bytes());
-                    out.extend_from_slice(&(resp.len() as u32).to_le_bytes());
-                    out.extend_from_slice(&resp);
-                    conn.write_all(&out).unwrap();
-                }
+                let resp = serde_json::to_vec(&json!({
+                    "cmd": "DISPATCH", "evt": if i == 0 { "READY" } else { "SET_ACTIVITY" }
+                }))
+                .unwrap();
+                let mut out = Vec::new();
+                out.extend_from_slice(&1u32.to_le_bytes());
+                out.extend_from_slice(&(resp.len() as u32).to_le_bytes());
+                out.extend_from_slice(&resp);
+                conn.write_all(&out).unwrap();
             }
             frames
         });

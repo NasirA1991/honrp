@@ -36,6 +36,13 @@ impl Default for Config {
     }
 }
 
+pub fn config_path() -> Option<PathBuf> {
+    if let Some(dir) = dirs::config_dir() {
+        return Some(dir.join("honrp").join("config.json"));
+    }
+    std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config/honrp/config.json"))
+}
+
 impl Config {
     pub fn load(path: Option<&Path>) -> Self {
         let mut candidates: Vec<PathBuf> = Vec::new();
@@ -45,8 +52,8 @@ impl Config {
         if let Ok(p) = std::env::var("HONRP_CONFIG") {
             candidates.push(p.into());
         }
-        if let Some(home) = std::env::var_os("HOME") {
-            candidates.push(PathBuf::from(home).join(".config/honrp/config.json"));
+        if let Some(p) = config_path() {
+            candidates.push(p);
         }
         candidates.push(PathBuf::from("config.json"));
 

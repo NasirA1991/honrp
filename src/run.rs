@@ -246,8 +246,11 @@ pub fn run(cfg: &Config, opts: RunOpts) -> Result<()> {
         );
     }
     let stop = Arc::new(AtomicBool::new(false));
-    signal_hook::flag::register(signal_hook::consts::SIGINT, stop.clone())?;
-    signal_hook::flag::register(signal_hook::consts::SIGTERM, stop.clone())?;
+    #[cfg(unix)]
+    {
+        signal_hook::flag::register(signal_hook::consts::SIGINT, stop.clone())?;
+        signal_hook::flag::register(signal_hook::consts::SIGTERM, stop.clone())?;
+    }
 
     let mut sm = StateMachine::new(opts.user_dir.clone());
     sm.poll();

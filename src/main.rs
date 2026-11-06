@@ -121,11 +121,7 @@ fn main() -> Result<()> {
             no_service,
         } => install(user_dir, prefix, client_id, no_service),
         Cmd::Uninstall { user_dir } => uninstall(user_dir),
-        Cmd::Service { action } => match action {
-            ServiceAction::Install => service_install(),
-            ServiceAction::Uninstall => service_uninstall(),
-            ServiceAction::Status => service_status(),
-        },
+        Cmd::Service { action } => service_dispatch(action),
     }
 }
 
@@ -299,10 +295,7 @@ fn doctor(cfg: &Config, user_dir: Option<PathBuf>) -> Result<()> {
 }
 
 fn set_client_id(id: &str) -> Result<()> {
-    let path = std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .context("HOME not set")?
-        .join(".config/honrp/config.json");
+    let path = config::config_path().context("no config directory")?;
     let mut cfg: serde_json::Value = fs::read_to_string(&path)
         .ok()
         .and_then(|t| serde_json::from_str(&t).ok())
@@ -340,17 +333,29 @@ fn install(
     println!("  - the daemon reads that log and talks only to Discord's local socket");
     println!("  - no internet, no game memory access, no input, no game files changed");
     println!();
-    let cfg = Config::load(None);
-    if cfg.client_id.is_empty() {
-        eprintln!("warning: no Discord application id configured yet.");
-        eprintln!("  create one at https://discord.com/developers/applications and run:");
-        eprintln!("    honrp install --client-id <ID>");
-        eprintln!("  (the service is not started until an id is configured)");
-    } else if !no_service {
-        match service_install() {
-            Ok(()) => println!("systemd user service installed and started"),
-            Err(e) => println!("warning: systemd service not installed: {e}"),
+    #[cfg(unix)]
+    {
+        let cfg = Config::load(None);
+        if cfg.client_id.is_empty() {
+            eprintln!("warning: no Discord application id configured yet.");
+            eprintln!("  create one at https://discord.com/developers/applications and run:");
+            eprintln!("    honrp install --client-id <ID>");
+            eprintln!("  (the service is not started until an id is configured)");
+        } else if !no_service {
+            match service_install() {
+                Ok(()) => println!("systemd user service installed and started"),
+                Err(e) => println!("warning: systemd service not installed: {e}"),
+            }
         }
+    }
+    #[cfg(windows)]
+    {
+        let _ = no_service;
+        println!("Windows alpha: no installer and no autostart yet.");
+        println!(
+            "Start the daemon while playing: \"{}\" run",
+            std::env::current_exe()?.display()
+        );
     }
     println!("If Discord also shows a separate 'Juvio' game, disable it once in");
     println!("Settings -> Game Activity -> Registered Games (honrp cannot change that list).");
@@ -359,6 +364,7 @@ fn install(
 }
 
 fn uninstall(user_dir: Option<PathBuf>) -> Result<()> {
+    #[cfg(unix)]
     let _ = service_uninstall();
     if let Some(ud) = resolve_user_dir(user_dir, None) {
         mod_uninstall(&ud)?;
@@ -433,6 +439,7 @@ fn mod_uninstall(ud: &Path) -> Result<()> {
     Ok(())
 }
 
+#[cfg(unix)]
 fn service_unit_path() -> Result<PathBuf> {
     let home = std::env::var_os("HOME").context("HOME not set")?;
     Ok(PathBuf::from(home)
@@ -440,6 +447,7 @@ fn service_unit_path() -> Result<PathBuf> {
         .join("honrp.service"))
 }
 
+#[cfg(unix)]
 fn sh(cmd: &mut Command) -> Result<()> {
     let out = cmd.output().context("running command")?;
     if !out.status.success() {
@@ -452,6 +460,7 @@ fn sh(cmd: &mut Command) -> Result<()> {
     Ok(())
 }
 
+#[cfg(unix)]
 fn systemd_available() -> bool {
     Command::new("systemctl")
         .args(["--user", "show-environment"])
@@ -460,6 +469,7 @@ fn systemd_available() -> bool {
         .unwrap_or(false)
 }
 
+#[cfg(unix)]
 fn autostart_path() -> Result<PathBuf> {
     let home = std::env::var_os("HOME").context("HOME not set")?;
     Ok(PathBuf::from(home)
@@ -467,6 +477,7 @@ fn autostart_path() -> Result<PathBuf> {
         .join("honrp.desktop"))
 }
 
+#[cfg(unix)]
 fn autostart_install(exe: &Path) -> Result<()> {
     let path = autostart_path()?;
     if let Some(dir) = path.parent() {
@@ -491,6 +502,7 @@ fn autostart_install(exe: &Path) -> Result<()> {
     Ok(())
 }
 
+#[cfg(unix)]
 fn service_install() -> Result<()> {
     let exe = std::env::current_exe()?;
     if !systemd_available() {
@@ -522,6 +534,7 @@ fn service_install() -> Result<()> {
     Ok(())
 }
 
+#[cfg(unix)]
 fn service_uninstall() -> Result<()> {
     if systemd_available() {
         let path = service_unit_path()?;
@@ -540,6 +553,7 @@ fn service_uninstall() -> Result<()> {
     Ok(())
 }
 
+#[cfg(unix)]
 fn service_status() -> Result<()> {
     if systemd_available() {
         let out = Command::new("systemctl")
@@ -559,6 +573,22 @@ fn service_status() -> Result<()> {
             }
         );
     }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn service_dispatch(action: ServiceAction) -> Result<()> {
+    match action {
+        ServiceAction::Install => service_install(),
+        ServiceAction::Uninstall => service_uninstall(),
+        ServiceAction::Status => service_status(),
+    }
+}
+
+#[cfg(windows)]
+fn service_dispatch(_action: ServiceAction) -> Result<()> {
+    println!("service management is not implemented on Windows in this alpha.");
+    println!("run `honrp run` in a terminal while playing.");
     Ok(())
 }
 

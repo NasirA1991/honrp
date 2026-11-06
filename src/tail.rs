@@ -1,7 +1,21 @@
 use std::fs::{self, File};
 use std::io::{Read, Seek, SeekFrom};
-use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
+
+#[cfg(unix)]
+use std::os::unix::fs::MetadataExt;
+
+fn file_id(meta: &fs::Metadata) -> Option<u64> {
+    #[cfg(unix)]
+    {
+        Some(meta.ino())
+    }
+    #[cfg(windows)]
+    {
+        let _ = meta;
+        None
+    }
+}
 
 /// Incremental UTF-16LE console.log reader (BOM, partial lines, rotation).
 pub struct ConsoleTail {
@@ -30,7 +44,7 @@ impl ConsoleTail {
     pub fn seek_to_end(&mut self) {
         if let Ok(meta) = fs::metadata(&self.path) {
             self.offset = meta.len();
-            self.ino = Some(meta.ino());
+            self.ino = file_id(&meta);
         }
         self.residual.clear();
     }
@@ -39,9 +53,10 @@ impl ConsoleTail {
         let Ok(meta) = fs::metadata(&self.path) else {
             return Vec::new();
         };
-        if self.ino != Some(meta.ino()) || meta.len() < self.offset {
+        let id = file_id(&meta);
+        if self.ino != id || meta.len() < self.offset {
             self.reset();
-            self.ino = Some(meta.ino());
+            self.ino = id;
         }
         if meta.len() == self.offset {
             return Vec::new();

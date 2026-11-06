@@ -3,15 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-pub const DOCS_TAIL: &str = "Documents/Juvio/Heroes of Newerth";
-
-#[derive(Clone, Debug)]
-pub struct GameProcess {
-    pub pid: i32,
-    pub prefix: Option<PathBuf>,
-    pub cmdline: String,
-    pub start_time: Option<i64>,
-}
+use super::{GameProcess, DOCS_TAIL};
 
 fn read_to_string(path: impl AsRef<Path>) -> Option<String> {
     fs::read_to_string(path).ok()
@@ -483,32 +475,4 @@ pub fn pick_user_dir(prefix: Option<&Path>, explicit: Option<&Path>) -> Option<P
     user_dir_candidates(prefix)
         .into_iter()
         .max_by_key(|ud| mtime(&ud.join("console.log")))
-}
-
-/// Parse the running game's command line for the Z: path (best effort).
-pub fn install_dir_from_cmdline(cmdline: &str) -> Option<PathBuf> {
-    let start = cmdline.find("Z:\\")?;
-    let rest = &cmdline[start + 3..];
-    let end = rest.find(".exe")? + 4;
-    let win = rest[..end].replace('\\', "/");
-    Some(PathBuf::from(format!("/{win}")))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn maps_prefix_from_loaded_dll() {
-        let maps = "7f00-7f10 r-xp 00000000 00:00 0 /home/u/Games/HoN/drive_c/windows/system32/ntdll.dll\n";
-        assert_eq!(
-            parse_maps_prefix(maps),
-            Some(PathBuf::from("/home/u/Games/HoN"))
-        );
-    }
-
-    #[test]
-    fn maps_without_prefix() {
-        assert_eq!(parse_maps_prefix("/usr/lib/libc.so.6\n"), None);
-    }
 }

@@ -28,3 +28,16 @@ jobs:
 
       - name: Lua bridge tests (mocked engine)
         run: lua5.1 tests/test_lua_mod.lua lua/honrp_mod.lua
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Windows tests
+        run: cargo test
+
+      - name: Windows release build
+        run: cargo build --release

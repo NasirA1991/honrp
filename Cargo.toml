@@ -3,7 +3,7 @@ name = "honrp"
 version = "0.2.7"
 edition = "2021"
 rust-version = "1.70"
-description = "Discord Rich Presence for Heroes of Newerth on Linux (Steam/Proton)"
+description = "Discord Rich Presence for Heroes of Newerth on Linux and Windows"
 license = "MIT"
 repository = "https://github.com/NasirA1991/honrp"
 readme = "README.md"
@@ -15,8 +15,11 @@ anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-signal-hook = "0.3"
+dirs = "5"
+
+[target.'cfg(unix)'.dependencies]
 libc = "0.2"
+signal-hook = "0.3"
 
 [profile.release]
 opt-level = "z"
