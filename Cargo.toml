@@ -1,6 +1,6 @@
 [package]
 name = "honrp"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 rust-version = "1.70"
 description = "Discord Rich Presence for Heroes of Newerth on Linux and Windows"

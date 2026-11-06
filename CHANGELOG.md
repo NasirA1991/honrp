@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 — 2026-11-06
+
+- Windows zip is built with the static MSVC CRT, so it no longer needs
+  `VCRUNTIME140.dll` / the VC++ redistributable on the target machine.
+
 ## 0.3.0 — 2026-11-06
 
 - Windows alpha port (portable, no installer, no autostart yet):
