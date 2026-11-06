@@ -45,6 +45,19 @@ install -Dm755 target/release/honrp ~/.local/bin/honrp
 honrp install
 ```
 
+### Windows (alpha)
+
+Portable, no installer and no autostart yet:
+
+1. Download `honrp-vX.Y.Z-windows-x86_64.zip` from the latest release and extract it.
+2. Run `honrp.exe install` — it writes the Lua bridge to
+   `%USERPROFILE%\Documents\Juvio\Heroes of Newerth`.
+3. Run `honrp.exe run` while playing (keep the window open), then restart HoN.
+
+No admin required; nothing in the game install directory is modified. This
+build has not been tested on real Windows hardware yet — feedback is very
+welcome. See [README-WINDOWS.txt](README-WINDOWS.txt).
+
 `honrp install` finds your Proton/Wine prefix, adds the Lua bridge to
 `startup.lua`, and installs a systemd **user** service — no root, nothing in the
 game install directory. On systems without a systemd user session it writes

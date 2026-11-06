@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 — 2026-11-06
+
+- Windows alpha port (portable, no installer, no autostart yet):
+  - process detection via `tasklist`, Documents/Known Folder paths
+  - Discord named-pipe IPC (`\\.\pipe\discord-ipc-N`)
+  - config in `%APPDATA%`, UTF-16LE log tail, cfg-gated file rotation
+  - `honrp.exe install` writes the Lua bridge only; `honrp.exe run` starts it
+  - Windows CI test/build job and a `windows-x86_64.zip` release asset
+- Not code-signed; SmartScreen bypass instructions are in README-WINDOWS.txt.
+
 ## 0.2.7 — 2026-11-05
 
 Rust fixes from an external review of the old Python prototype (the review
