@@ -74,7 +74,7 @@ check_updates.
 
 Updating
 --------
-The window checks GitHub on start; clicking the footer (honrp 0.3.6 · Up to
+The window checks GitHub on start; clicking the footer (honrp 0.3.7 · Up to
 date) checks again and offers **Install x.y.z** when a newer release exists,
 verified against the release checksums. After an update close and reopen honrp.
 The Lua bridge is embedded in the binary and rewritten automatically when it
