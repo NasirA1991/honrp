@@ -5,7 +5,7 @@ This document is the complete handoff for the work on
 UI to Linux, and produce the next release without re-deriving anything.
 
 - Base: `main` @ `f79baac` ("AUR: version the cached source filename")
-- Branch head: `aa85f25` (see `git log main..HEAD` for the live list)
+- Branch head: `git log -1 --oneline` (live list: `git log main..HEAD`)
 - Platform status: **Windows tested by hand; Linux compiles in CI but the GUI
   has not been run on Linux yet.** See `docs/PORTING-LINUX.md` for the port
   checklist.
