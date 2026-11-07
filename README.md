@@ -14,6 +14,7 @@
   <a href="https://github.com/NasirA1991/honrp/actions/workflows/ci.yml"><img src="https://github.com/NasirA1991/honrp/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://aur.archlinux.org/packages/honrp-bin"><img src="https://img.shields.io/badge/AUR-honrp--bin-1793D1?logo=archlinux&logoColor=white" alt="AUR"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
+  <img src="https://img.shields.io/badge/100%25-vibecoded-ff69b4?style=flat-square" alt="100% vibecoded">
 </p>
 
 ## Install
@@ -73,6 +74,14 @@ The Linux window needs Wayland or X11 and a Vulkan-capable driver. The packages 
 ### After installing
 
 Open **honrp**, click **Start Rich Presence**, then launch Heroes of Newerth. If you were already in-game, restart it once. No Discord application setup is needed — the app id is built in.
+
+## What it looks like
+
+<p align="center">
+  <img src="assets/app-screenshot.png" alt="honrp control window showing Rich Presence on, Discord ready, and the Start/Stop button" width="480">
+</p>
+
+The control window stays out of the way: current status, one action button, Config and Menu. The Windows build has the same layout with a startup toggle instead of the Linux command dialog.
 
 ## What it shows
 
