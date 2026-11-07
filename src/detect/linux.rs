@@ -476,3 +476,18 @@ pub fn pick_user_dir(prefix: Option<&Path>, explicit: Option<&Path>) -> Option<P
         .into_iter()
         .max_by_key(|ud| mtime(&ud.join("console.log")))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extracts_prefix_from_proc_maps() {
+        let maps = "7f00-7f01 r-xp 00000000 08:01 1234 /home/me/.wine/drive_c/windows/system32/kernel32.dll\n";
+        assert_eq!(
+            parse_maps_prefix(maps),
+            Some(PathBuf::from("/home/me/.wine"))
+        );
+        assert_eq!(parse_maps_prefix("no prefix here"), None);
+    }
+}
