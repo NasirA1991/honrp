@@ -47,7 +47,7 @@ pub fn current_version() -> &'static str {
 
 /// "v1.2.3", "1.2", "v1.2.3-rc1" -> (1, 2, 3)
 pub fn parse_version(text: &str) -> Option<(u64, u64, u64)> {
-    let t = text.trim().trim_start_matches(|c| c == 'v' || c == 'V');
+    let t = text.trim().trim_start_matches(['v', 'V']);
     // Never treat an RC/beta/build-tagged release as a final version.
     if t.contains('-') || t.contains('+') {
         return None;
@@ -67,6 +67,7 @@ pub fn is_newer(latest: &str, current: &str) -> bool {
 }
 
 fn command(program: &str) -> Command {
+    #[allow(unused_mut)]
     let mut cmd = Command::new(program);
     #[cfg(windows)]
     {
@@ -106,7 +107,7 @@ pub fn fetch_latest() -> Result<Release> {
     let version = api
         .tag_name
         .trim()
-        .trim_start_matches(|c| c == 'v' || c == 'V')
+        .trim_start_matches(['v', 'V'])
         .to_string();
     if parse_version(&version).is_none() {
         bail!("unexpected release tag {:?}", api.tag_name);
@@ -172,7 +173,10 @@ fn download(url: &str, dest: &Path) -> Result<()> {
 
 fn verify_checksum(release: &Release, asset: &Asset, archive: &Path) -> Result<()> {
     let Some(checksums) = release.assets.iter().find(|a| a.name == "checksums.txt") else {
-        bail!("release {} has no checksums.txt; refusing to update without verification", release.tag);
+        bail!(
+            "release {} has no checksums.txt; refusing to update without verification",
+            release.tag
+        );
     };
     let tmp = std::env::temp_dir().join(format!("honrp-checksums-{}.txt", std::process::id()));
     download(&checksums.browser_download_url, &tmp)?;

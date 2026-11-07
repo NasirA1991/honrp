@@ -9,6 +9,7 @@
 //! missing, poll its state and stop it on request.  No external crates and no
 //! named-pipe differences between Windows and Linux.
 
+use std::fmt::Write as _;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -18,6 +19,52 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 pub const PORT: u16 = 47832;
+
+fn token_path() -> std::path::PathBuf {
+    crate::config::config_path()
+        .map(|p| p.with_file_name("control.token"))
+        .unwrap_or_else(|| std::env::temp_dir().join("honrp-control.token"))
+}
+
+fn read_token() -> Option<String> {
+    std::fs::read_to_string(token_path())
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+fn create_token() -> Option<String> {
+    let mut bytes = [0u8; 32];
+    if getrandom::fill(&mut bytes).is_err() {
+        // Extremely unlikely; fall back to a low-entropy local token rather
+        // than silently disabling the check.
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let pid = std::process::id();
+        let seed = format!("{now}-{pid}");
+        let n = seed.len().min(bytes.len());
+        bytes[..n].copy_from_slice(&seed.as_bytes()[..n]);
+    }
+    let mut token = String::with_capacity(64);
+    for b in bytes {
+        let _ = write!(&mut token, "{b:02x}");
+    }
+    let path = token_path();
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    if std::fs::write(&path, &token).is_err() {
+        return None;
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+    }
+    Some(token)
+}
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
@@ -51,16 +98,31 @@ fn current() -> DaemonStatus {
     }
 }
 
-fn request(cmd: &str, timeout: Duration) -> Option<String> {
+fn send_request(line: &str, timeout: Duration) -> Option<String> {
     let addr = SocketAddr::from(([127, 0, 0, 1], PORT));
     let mut stream = TcpStream::connect_timeout(&addr, timeout).ok()?;
     stream.set_read_timeout(Some(timeout)).ok()?;
     stream.set_write_timeout(Some(timeout)).ok()?;
-    writeln!(stream, "{cmd}").ok()?;
+    writeln!(stream, "{line}").ok()?;
     let mut reader = BufReader::new(stream);
-    let mut line = String::new();
-    reader.read_line(&mut line).ok()?;
-    Some(line.trim().to_string())
+    let mut reply = String::new();
+    reader.read_line(&mut reply).ok()?;
+    Some(reply.trim().to_string())
+}
+
+fn request(cmd: &str, timeout: Duration) -> Option<String> {
+    if cmd == "ping" {
+        return send_request(cmd, timeout);
+    }
+    let token = read_token();
+    if let Some(token) = &token {
+        let reply = send_request(&format!("{cmd} {token}"), timeout);
+        if reply.as_deref() != Some("err") {
+            return reply;
+        }
+        // Compatibility with an older daemon that predates token auth.
+    }
+    send_request(cmd, timeout)
 }
 
 pub fn running() -> bool {
@@ -78,6 +140,10 @@ pub fn stop() -> bool {
 
 /// Blocking accept loop; run it on its own thread inside the daemon.
 pub fn serve(stop: Arc<AtomicBool>) {
+    let Some(token) = create_token() else {
+        eprintln!("control: could not write the control token; control disabled");
+        return;
+    };
     // A just-stopped daemon can leave the port in TIME_WAIT; a single failed
     // bind used to make Start Rich Presence silently fail. Retry for up to two
     // minutes instead of exiting immediately.
@@ -119,21 +185,25 @@ pub fn serve(stop: Arc<AtomicBool>) {
         if reader.read_line(&mut line).is_err() {
             continue;
         }
-        let cmd = line.trim();
+        let mut parts = line.split_whitespace();
+        let cmd = parts.next().unwrap_or("");
+        let supplied = parts.next().unwrap_or("");
+        let authed = supplied == token;
         let reply = match cmd {
-            "status" => serde_json::to_string(&current()).unwrap_or_else(|_| "{}".into()),
+            "status" if authed => serde_json::to_string(&current()).unwrap_or_else(|_| "{}".into()),
             "ping" => "ok".to_string(),
-            "stop" => {
+            "stop" if authed => {
                 stop.store(true, Ordering::Relaxed);
                 "ok".to_string()
             }
             _ => "err".to_string(),
         };
         let _ = writeln!(stream, "{reply}");
-        if cmd == "stop" {
+        if cmd == "stop" && authed {
             break;
         }
     }
+    let _ = std::fs::remove_file(token_path());
 }
 
 static LATEST: OnceLock<Mutex<Option<DaemonStatus>>> = OnceLock::new();

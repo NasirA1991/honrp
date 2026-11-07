@@ -273,10 +273,7 @@ impl DiscordIpc {
             return Ok(None);
         }
         #[cfg(windows)]
-        if self
-            .read_exact_timeout(&mut hdr, IPC_READ_TIMEOUT)
-            .is_err()
-        {
+        if self.read_exact_timeout(&mut hdr, IPC_READ_TIMEOUT).is_err() {
             return Ok(None);
         }
         let op = u32::from_le_bytes([hdr[0], hdr[1], hdr[2], hdr[3]]);
@@ -323,12 +320,7 @@ impl DiscordIpc {
         if self.stream.set_nonblocking(true).is_err() {
             return;
         }
-        loop {
-            match self.read_frame() {
-                Ok(Some(_)) => continue,
-                _ => break,
-            }
-        }
+        while let Ok(Some(_)) = self.read_frame() {}
         let _ = self.stream.set_nonblocking(false);
     }
 

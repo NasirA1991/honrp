@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 
 use crate::activity::{self, View};
 use crate::config::Config;
@@ -337,9 +337,7 @@ pub fn run(cfg: &Config, opts: RunOpts) -> Result<()> {
         .user_dir
         .clone()
         .or_else(|| detect::pick_user_dir(None, explicit_user_dir.as_deref()))
-        .or_else(|| {
-            dirs::document_dir().map(|d| d.join("Juvio").join("Heroes of Newerth"))
-        });
+        .or_else(|| dirs::document_dir().map(|d| d.join("Juvio").join("Heroes of Newerth")));
     #[cfg(not(windows))]
     let initial_bridge_dir = sm
         .user_dir
@@ -427,10 +425,7 @@ pub fn run(cfg: &Config, opts: RunOpts) -> Result<()> {
             s.game_pid = sm.pid();
             s.in_game = view.in_game;
             s.in_queue = view.in_queue;
-            s.user_dir = sm
-                .user_dir
-                .as_ref()
-                .map(|p| p.display().to_string());
+            s.user_dir = sm.user_dir.as_ref().map(|p| p.display().to_string());
             match &activity {
                 Some(a) => {
                     s.details = a.details.clone();

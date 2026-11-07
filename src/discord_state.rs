@@ -21,7 +21,12 @@ pub enum DiscordState {
 
 /// `found`: `Some(true)` = IPC endpoint exists, `Some(false)` = none found,
 /// `None` = the daemon did not report it.
-pub fn derive(daemon: bool, connected: bool, found: Option<bool>, game_running: bool) -> DiscordState {
+pub fn derive(
+    daemon: bool,
+    connected: bool,
+    found: Option<bool>,
+    game_running: bool,
+) -> DiscordState {
     if !daemon {
         return DiscordState::Off;
     }

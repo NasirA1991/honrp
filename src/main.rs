@@ -158,7 +158,7 @@ fn main() -> Result<()> {
             #[cfg(feature = "gui")]
             {
                 let _ = cli.minimized;
-                return gui::run();
+                gui::run()
             }
             #[cfg(not(feature = "gui"))]
             {
@@ -203,7 +203,11 @@ fn status(cfg: &Config, as_json: bool, user_dir: Option<PathBuf>) -> Result<()> 
                     println!(
                         "card:        {}{}{}",
                         daemon.details,
-                        if daemon.state.is_empty() { "" } else { "  \u{b7}  " },
+                        if daemon.state.is_empty() {
+                            ""
+                        } else {
+                            "  \u{b7}  "
+                        },
                         daemon.state
                     );
                 }
@@ -417,14 +421,38 @@ fn set_client_id(id: &str) -> Result<()> {
 
 #[cfg(unix)]
 const DESKTOP_ICONS: &[(u32, &[u8])] = &[
-    (16, include_bytes!("../assets/icons/hicolor/16x16/apps/honrp.png")),
-    (24, include_bytes!("../assets/icons/hicolor/24x24/apps/honrp.png")),
-    (32, include_bytes!("../assets/icons/hicolor/32x32/apps/honrp.png")),
-    (48, include_bytes!("../assets/icons/hicolor/48x48/apps/honrp.png")),
-    (64, include_bytes!("../assets/icons/hicolor/64x64/apps/honrp.png")),
-    (128, include_bytes!("../assets/icons/hicolor/128x128/apps/honrp.png")),
-    (256, include_bytes!("../assets/icons/hicolor/256x256/apps/honrp.png")),
-    (512, include_bytes!("../assets/icons/hicolor/512x512/apps/honrp.png")),
+    (
+        16,
+        include_bytes!("../assets/icons/hicolor/16x16/apps/honrp.png"),
+    ),
+    (
+        24,
+        include_bytes!("../assets/icons/hicolor/24x24/apps/honrp.png"),
+    ),
+    (
+        32,
+        include_bytes!("../assets/icons/hicolor/32x32/apps/honrp.png"),
+    ),
+    (
+        48,
+        include_bytes!("../assets/icons/hicolor/48x48/apps/honrp.png"),
+    ),
+    (
+        64,
+        include_bytes!("../assets/icons/hicolor/64x64/apps/honrp.png"),
+    ),
+    (
+        128,
+        include_bytes!("../assets/icons/hicolor/128x128/apps/honrp.png"),
+    ),
+    (
+        256,
+        include_bytes!("../assets/icons/hicolor/256x256/apps/honrp.png"),
+    ),
+    (
+        512,
+        include_bytes!("../assets/icons/hicolor/512x512/apps/honrp.png"),
+    ),
 ];
 
 /// Install the app-menu entry and hicolor icons for this user. This is what

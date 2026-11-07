@@ -77,6 +77,7 @@ impl ConsoleTail {
         data.extend_from_slice(&chunk);
 
         // Split on UTF-16LE newline; keep the trailing partial line.
+        #[allow(clippy::chunks_exact_to_as_chunks)]
         let mut units: Vec<u16> = data
             .chunks_exact(2)
             .map(|c| u16::from_le_bytes([c[0], c[1]]))

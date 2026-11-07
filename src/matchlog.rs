@@ -10,6 +10,7 @@ pub struct MatchInfo {
     pub mode: String,
 }
 
+#[allow(clippy::chunks_exact_to_as_chunks)]
 fn decode(path: &Path) -> Option<String> {
     let raw = fs::read(path).ok()?;
     let raw = raw.get(..8192.min(raw.len()))?;

@@ -27,7 +27,12 @@ processes are inspected (only processes whose comm is `juvio.exe`).
 |---|---|
 | `.../Documents/Juvio/Heroes of Newerth/startup.lua` | the Lua bridge, inside a `--- HONRP BEGIN/END ---` managed block; existing content is preserved and backed up |
 | `~/.config/honrp/config.json` | configuration |
+| `~/.config/honrp/control.token` | per-daemon 0600 token for the loopback control protocol |
+| `~/.config/honrp/daemon.log` | daemon start/stop log |
 | `~/.config/systemd/user/honrp.service` | the user service (no root) |
+| `~/.config/autostart/honrp.desktop` | fallback autostart when systemd is unavailable |
+| `~/.local/share/applications/honrp.desktop`, `~/.local/share/icons/hicolor/*/apps/honrp.png` | app-menu entry and icons installed by `honrp install` |
+| `.../Documents/Juvio/Heroes of Newerth/startup.lua.honrp.bak` | one-time backup of the original startup file |
 | stderr / journal | status and errors |
 
 The game install directory is never modified.
@@ -41,7 +46,8 @@ Two local/loopback connections exist:
 
 - The GUI and daemon use TCP on `127.0.0.1:47831` and `127.0.0.1:47832` for
   single-instance detection and the control protocol. These are bound to
-  loopback only.
+  loopback only. `status` and `stop` require a per-daemon token stored in a
+  0600 file; `ping` is unauthenticated.
 - When update checks are enabled (`check_updates`, default `true`), honrp
   requests the GitHub release API and, if you install an update, the release
   asset over HTTPS. Set `check_updates` to `false` to disable the check.

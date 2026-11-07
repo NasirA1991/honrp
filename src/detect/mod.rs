@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub const DOCS_TAIL: &str = "Documents/Juvio/Heroes of Newerth";
 

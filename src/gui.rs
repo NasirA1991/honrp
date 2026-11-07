@@ -97,15 +97,18 @@ fn shorten(text: &str, max: usize) -> String {
 fn faint_separator(ui: &mut egui::Ui, color: egui::Color32) {
     let (rect, _) =
         ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), egui::Sense::hover());
-    ui.painter()
-        .hline(rect.x_range(), rect.center().y, egui::Stroke::new(1.0, color));
+    ui.painter().hline(
+        rect.x_range(),
+        rect.center().y,
+        egui::Stroke::new(1.0, color),
+    );
 }
 
+#[cfg(windows)]
 fn toggle_row(ui: &mut egui::Ui, value: &mut bool, label: &str) -> bool {
     let mut changed = false;
     ui.horizontal(|ui| {
-        let (rect, resp) =
-            ui.allocate_exact_size(egui::vec2(34.0, 18.0), egui::Sense::click());
+        let (rect, resp) = ui.allocate_exact_size(egui::vec2(34.0, 18.0), egui::Sense::click());
         if resp.clicked() {
             *value = !*value;
             changed = true;
@@ -115,7 +118,10 @@ fn toggle_row(ui: &mut egui::Ui, value: &mut bool, label: &str) -> bool {
         }
         let on = *value;
         let (track, border) = if on {
-            (ui.visuals().selection.bg_fill, ui.visuals().selection.bg_fill)
+            (
+                ui.visuals().selection.bg_fill,
+                ui.visuals().selection.bg_fill,
+            )
         } else if ui.visuals().dark_mode {
             (
                 egui::Color32::from_rgb(0x3a, 0x3d, 0x44),
@@ -417,11 +423,8 @@ impl HonrpApp {
     fn ensure_icon(&mut self, ctx: &egui::Context) {
         if self.icon_texture.is_none() {
             let image = egui::ColorImage::from_rgba_unmultiplied([64, 64], ICON_RGBA);
-            self.icon_texture = Some(ctx.load_texture(
-                "honrp-window-icon",
-                image,
-                egui::TextureOptions::LINEAR,
-            ));
+            self.icon_texture =
+                Some(ctx.load_texture("honrp-window-icon", image, egui::TextureOptions::LINEAR));
         }
     }
 
@@ -484,10 +487,14 @@ impl HonrpApp {
             egui::vec2(button, button),
         );
 
-        let close_resp = ui.interact(close, ui.id().with("titlebar-close"), egui::Sense::click());
+        let close_resp = ui.interact(
+            close,
+            ui.scope_id().with("titlebar-close"),
+            egui::Sense::click(),
+        );
         let min_resp = ui.interact(
             minimize,
-            ui.id().with("titlebar-minimize"),
+            ui.scope_id().with("titlebar-minimize"),
             egui::Sense::click(),
         );
         if close_resp.hovered() {
@@ -532,11 +539,13 @@ impl HonrpApp {
             ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
         }
 
-        let drag = egui::Rect::from_min_max(
-            rect.min,
-            egui::pos2(minimize.left() - 4.0, rect.max.y),
+        let drag =
+            egui::Rect::from_min_max(rect.min, egui::pos2(minimize.left() - 4.0, rect.max.y));
+        let drag_resp = ui.interact(
+            drag,
+            ui.scope_id().with("titlebar-drag"),
+            egui::Sense::drag(),
         );
-        let drag_resp = ui.interact(drag, ui.id().with("titlebar-drag"), egui::Sense::drag());
         if drag_resp.drag_started() {
             ctx.send_viewport_cmd(egui::ViewportCommand::StartDrag);
         }
@@ -654,11 +663,7 @@ impl eframe::App for HonrpApp {
             OVERLAY_H
         } else {
             MAIN_BASE
-                + if attention.is_some() {
-                    EXTRA_ROW
-                } else {
-                    0.0
-                }
+                + if attention.is_some() { EXTRA_ROW } else { 0.0 }
                 + if has_state { EXTRA_ROW } else { 0.0 }
         };
         let resized = (self.window_h - desired_h).abs() > 0.5;
@@ -709,8 +714,7 @@ impl eframe::App for HonrpApp {
 
             // Rich Presence + Discord state, each with its own colour
             let dot = |ui: &mut egui::Ui, color: egui::Color32| {
-                let (rect, _) =
-                    ui.allocate_exact_size(egui::vec2(9.0, 9.0), egui::Sense::hover());
+                let (rect, _) = ui.allocate_exact_size(egui::vec2(9.0, 9.0), egui::Sense::hover());
                 ui.painter().circle_filled(rect.center(), 3.8, color);
             };
             ui.horizontal(|ui| {
@@ -720,14 +724,11 @@ impl eframe::App for HonrpApp {
                     (p.muted, "Rich Presence off")
                 };
                 dot(ui, rp_color);
-                ui.colored_label(
-                    rp_color,
-                    egui::RichText::new(rp_text).strong().size(14.0),
-                )
-                .on_hover_text(
-                    "Backed by the honrp background process. Closing the window does not \
+                ui.colored_label(rp_color, egui::RichText::new(rp_text).strong().size(14.0))
+                    .on_hover_text(
+                        "Backed by the honrp background process. Closing the window does not \
                      stop it.",
-                );
+                    );
                 ui.label(egui::RichText::new(" \u{b7} ").color(p.muted));
                 let (disc_color, disc_text, disc_tip) = match dstate {
                     DiscordState::Off => (
@@ -774,11 +775,11 @@ impl eframe::App for HonrpApp {
             // The problem states are where the user must act; don't hide the
             // instruction in a tooltip only.
             if let Some((text, warn)) = attention {
-                ui.label(
-                    egui::RichText::new(text)
-                        .size(11.5)
-                        .color(if warn { p.warn } else { p.muted }),
-                );
+                ui.label(egui::RichText::new(text).size(11.5).color(if warn {
+                    p.warn
+                } else {
+                    p.muted
+                }));
             }
 
             // card line; hero/level/KDA on hover
@@ -891,12 +892,8 @@ impl eframe::App for HonrpApp {
                 }
             }
 
-            let faint = egui::Color32::from_rgba_unmultiplied(
-                p.muted.r(),
-                p.muted.g(),
-                p.muted.b(),
-                46,
-            );
+            let faint =
+                egui::Color32::from_rgba_unmultiplied(p.muted.r(), p.muted.g(), p.muted.b(), 46);
             // The line belongs to the footer: more air above it than below.
             ui.add_space(10.0);
             faint_separator(ui, faint);
@@ -924,10 +921,7 @@ impl eframe::App for HonrpApp {
                     }
                 }
                 if let Some(release) = &update_release {
-                    if ui
-                        .button(format!("Install {}", release.version))
-                        .clicked()
-                    {
+                    if ui.button(format!("Install {}", release.version)).clicked() {
                         install_update(self.update.clone(), release.clone());
                     }
                 }
@@ -945,16 +939,13 @@ impl eframe::App for HonrpApp {
                 ui.add_space(4.0);
                 ui.monospace("honrp install");
                 ui.add_space(4.0);
-                ui.label(
-                    egui::RichText::new("To remove it again: honrp uninstall").color(p.muted),
-                );
+                ui.label(egui::RichText::new("To remove it again: honrp uninstall").color(p.muted));
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
                     if ui.button("Copy command").clicked() {
                         ui.ctx().copy_text("honrp install".to_string());
                     }
-                    let close = ui.button("Close").clicked();
-                    close
+                    ui.button("Close").clicked()
                 })
                 .inner
             });
@@ -1017,8 +1008,7 @@ impl eframe::App for HonrpApp {
                     let cancel_clicked = cancel.clicked();
                     let stop = ui.add(
                         egui::Button::new(
-                            egui::RichText::new("Stop Rich Presence")
-                                .color(egui::Color32::WHITE),
+                            egui::RichText::new("Stop Rich Presence").color(egui::Color32::WHITE),
                         )
                         .fill(p.danger_button),
                     );
@@ -1029,9 +1019,8 @@ impl eframe::App for HonrpApp {
             if modal.inner.0 {
                 self.confirm_stop = false;
                 self.stop_dialog_focus = false;
-                self.message = Some(
-                    "Rich Presence stopped. Start it again with Start Rich Presence.".into(),
-                );
+                self.message =
+                    Some("Rich Presence stopped. Start it again with Start Rich Presence.".into());
                 std::thread::spawn(|| {
                     let _ = crate::control::stop();
                 });
@@ -1109,11 +1098,9 @@ impl eframe::App for HonrpApp {
                     });
                 ui.add_space(4.0);
                 ui.label(
-                    egui::RichText::new(
-                        "The daemon log is in %APPDATA%\\honrp\\daemon.log.",
-                    )
-                    .small()
-                    .color(p.muted),
+                    egui::RichText::new("The daemon log is in %APPDATA%\\honrp\\daemon.log.")
+                        .small()
+                        .color(p.muted),
                 );
                 ui.add_space(8.0);
                 ui.button("Close").clicked()
@@ -1178,8 +1165,8 @@ fn restart_daemon() {
 }
 
 fn save_config(user_dir: &str, ipc: &str) -> std::io::Result<()> {
-    let path = crate::config::config_path()
-        .ok_or_else(|| std::io::Error::other("no config directory"))?;
+    let path =
+        crate::config::config_path().ok_or_else(|| std::io::Error::other("no config directory"))?;
     let mut value: serde_json::Value = std::fs::read_to_string(&path)
         .ok()
         .and_then(|text| serde_json::from_str(&text).ok())

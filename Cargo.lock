@@ -1186,6 +1186,7 @@ dependencies = [
  "clap",
  "dirs",
  "eframe",
+ "getrandom 0.3.4",
  "libc",
  "rfd",
  "serde",
