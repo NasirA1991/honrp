@@ -280,13 +280,6 @@ pub struct RunOpts {
 }
 
 pub fn run(cfg: &Config, opts: RunOpts) -> Result<()> {
-    if !opts.dry_run && cfg.client_id.is_empty() {
-        bail!(
-            "no Discord application id configured.\n\
-             Create one at https://discord.com/developers/applications and put its\n\
-             Application ID in ~/.config/honrp/config.json (client_id) or export HONRP_CLIENT_ID."
-        );
-    }
     let stop = Arc::new(AtomicBool::new(false));
     if crate::control::running() {
         eprintln!("honrp: a daemon is already running");

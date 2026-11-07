@@ -9,7 +9,7 @@
 //! missing, poll its state and stop it on request.  No external crates and no
 //! named-pipe differences between Windows and Linux.
 
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -105,11 +105,17 @@ pub fn serve(stop: Arc<AtomicBool>) {
     };
     for stream in listener.incoming().flatten() {
         let mut stream = stream;
+        // A client that connects and goes silent must not wedge the accept
+        // loop forever.
+        let _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
+        let _ = stream.set_write_timeout(Some(Duration::from_secs(2)));
         let mut line = String::new();
         let Ok(clone) = stream.try_clone() else {
             continue;
         };
-        let mut reader = BufReader::new(clone);
+        // Control commands are one short line; cap the read so a malicious
+        // local client cannot make us allocate an unbounded string.
+        let mut reader = BufReader::new(clone).take(4096);
         if reader.read_line(&mut line).is_err() {
             continue;
         }

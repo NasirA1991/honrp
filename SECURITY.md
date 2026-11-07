@@ -1,7 +1,9 @@
 # Security
 
-honrp runs as your user, with no root and no network listeners. It talks only
-to Discord's local unix socket.
+honrp runs as your user, with no root and no non-loopback listeners. The GUI
+and daemon use loopback TCP (`127.0.0.1:47831` and `:47832`); the only outbound
+request is the optional GitHub update check. It talks to Discord over its local
+unix socket.
 
 If you find a security issue (path traversal in the installer, unsafe handling
 of log/config content, service-unit injection, ...), please open a **private

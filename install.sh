@@ -19,9 +19,11 @@ echo "downloading ${base}/${bin}"
 curl -fsSL "${base}/${bin}" -o "${tmp}/${bin}"
 chmod +x "${tmp}/${bin}"
 
-if curl -fsSL "${base}/${bin}.sha256" -o "${tmp}/${bin}.sha256" 2>/dev/null; then
-  (cd "$tmp" && sha256sum -c "${bin}.sha256")
-fi
+curl -fsSL "${base}/${bin}.sha256" -o "${tmp}/${bin}.sha256" || {
+  echo "missing checksum for ${bin}; refusing to install" >&2
+  exit 1
+}
+(cd "$tmp" && sha256sum -c "${bin}.sha256")
 
 install -Dm755 "${tmp}/${bin}" "${dest}"
 echo "installed ${dest}"
