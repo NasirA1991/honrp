@@ -348,7 +348,10 @@ pub fn run(cfg: &Config, opts: RunOpts) -> Result<()> {
             dirs::document_dir().map(|d| d.join("Juvio").join("Heroes of Newerth"))
         });
     #[cfg(not(windows))]
-    let initial_bridge_dir = sm.user_dir.clone();
+    let initial_bridge_dir = sm
+        .user_dir
+        .clone()
+        .or_else(|| detect::pick_user_dir(None, explicit_user_dir.as_deref()));
 
     if let Some(ud) = initial_bridge_dir {
         sm.user_dir = Some(ud.clone());

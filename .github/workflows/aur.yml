@@ -40,7 +40,7 @@ jobs:
           set -e
           mkdir -p rel
           gh release download "${{ steps.tag.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --dir rel \
-            --pattern honrp-linux-x86_64 --pattern LICENSE --pattern config.example.json --clobber
+            --pattern 'honrp-*-x86_64-linux.tar.gz' --clobber
 
       - name: Generate AUR files
         env:
@@ -49,9 +49,7 @@ jobs:
           set -euo pipefail
           tag="${{ steps.tag.outputs.tag }}"
           ver="${tag#v}"
-          bin_sha="$(sha256sum rel/honrp-linux-x86_64 | cut -d' ' -f1)"
-          lic_sha="$(sha256sum rel/LICENSE | cut -d' ' -f1)"
-          cfg_sha="$(sha256sum rel/config.example.json | cut -d' ' -f1)"
+          tar_sha="$(sha256sum rel/honrp-*-x86_64-linux.tar.gz | cut -d' ' -f1)"
 
           pkgrel="${PKGREL:-1}"
           cat > PKGBUILD <<EOF
@@ -67,16 +65,20 @@ jobs:
           conflicts=('honrp')
           options=('!strip')
           source=(
-            "honrp-\${pkgver}-linux-x86_64::https://github.com/NasirA1991/honrp/releases/download/v\${pkgver}/honrp-linux-x86_64"
-            "LICENSE::https://github.com/NasirA1991/honrp/raw/v\${pkgver}/LICENSE"
-            "config.example.json::https://github.com/NasirA1991/honrp/raw/v\${pkgver}/config.example.json"
+            "honrp-\${pkgver}-x86_64-linux.tar.gz::https://github.com/NasirA1991/honrp/releases/download/v\${pkgver}/honrp-v\${pkgver}-x86_64-linux.tar.gz"
           )
-          sha256sums=('$bin_sha' '$lic_sha' '$cfg_sha')
+          sha256sums=('$tar_sha')
+          depends=('glibc' 'libxkbcommon' 'wayland' 'libx11' 'libxcursor' 'libxi' 'libxrandr' 'vulkan-icd-loader' 'hicolor-icon-theme')
 
           package() {
-            install -Dm755 "\$srcdir/honrp-\${pkgver}-linux-x86_64" "\$pkgdir/usr/bin/honrp"
+            tar -xzf "\$srcdir/honrp-\${pkgver}-x86_64-linux.tar.gz" -C "\$srcdir"
+            install -Dm755 "\$srcdir/honrp-linux-x86_64" "\$pkgdir/usr/bin/honrp"
             install -Dm644 "\$srcdir/LICENSE" "\$pkgdir/usr/share/licenses/\$pkgname/LICENSE"
             install -Dm644 "\$srcdir/config.example.json" "\$pkgdir/usr/share/honrp/config.example.json"
+            install -Dm644 "\$srcdir/honrp.desktop" "\$pkgdir/usr/share/applications/honrp.desktop"
+            for size in 16x16 24x24 32x32 48x48 64x64 128x128 256x256 512x512; do
+              install -Dm644 "\$srcdir/icons/hicolor/\$size/apps/honrp.png" "\$pkgdir/usr/share/icons/hicolor/\$size/apps/honrp.png"
+            done
           }
 
           post_install() {
@@ -99,12 +101,17 @@ jobs:
           	provides = honrp
           	conflicts = honrp
           	options = !strip
-          	source = honrp-$ver-linux-x86_64::https://github.com/NasirA1991/honrp/releases/download/v$ver/honrp-linux-x86_64
-          	source = LICENSE::https://github.com/NasirA1991/honrp/raw/v$ver/LICENSE
-          	source = config.example.json::https://github.com/NasirA1991/honrp/raw/v$ver/config.example.json
-          	sha256sums = $bin_sha
-          	sha256sums = $lic_sha
-          	sha256sums = $cfg_sha
+          	source = honrp-$ver-x86_64-linux.tar.gz::https://github.com/NasirA1991/honrp/releases/download/v$ver/honrp-v$ver-x86_64-linux.tar.gz
+          	sha256sums = $tar_sha
+          	depends = glibc
+          	depends = libxkbcommon
+          	depends = wayland
+          	depends = libx11
+          	depends = libxcursor
+          	depends = libxi
+          	depends = libxrandr
+          	depends = vulkan-icd-loader
+          	depends = hicolor-icon-theme
 
           pkgname = honrp-bin
           EOF

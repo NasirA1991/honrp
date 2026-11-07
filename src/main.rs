@@ -91,6 +91,9 @@ enum Cmd {
     Uninstall {
         #[arg(long, value_name = "DIR")]
         user_dir: Option<PathBuf>,
+        /// Also remove ~/.config/honrp (or %APPDATA%\honrp)
+        #[arg(long)]
+        purge: bool,
     },
     /// Install the latest GitHub release over this binary
     Update {
@@ -148,7 +151,7 @@ fn main() -> Result<()> {
             client_id,
             no_service,
         }) => install(user_dir, prefix, client_id, no_service),
-        Some(Cmd::Uninstall { user_dir }) => uninstall(user_dir),
+        Some(Cmd::Uninstall { user_dir, purge }) => uninstall(user_dir, purge),
         Some(Cmd::Update { check }) => update::run(check),
         Some(Cmd::Service { action }) => service_dispatch(action),
         None => {
@@ -427,7 +430,7 @@ fn install(
     Ok(())
 }
 
-fn uninstall(user_dir: Option<PathBuf>) -> Result<()> {
+fn uninstall(user_dir: Option<PathBuf>, purge: bool) -> Result<()> {
     // a running daemon holds the exe open on Windows
     let _ = control::stop();
     #[cfg(unix)]
@@ -450,9 +453,11 @@ fn uninstall(user_dir: Option<PathBuf>) -> Result<()> {
             ])
             .status();
     }
-    if let Some(dir) = config::config_path().and_then(|p| p.parent().map(|d| d.to_path_buf())) {
-        let _ = fs::remove_dir_all(&dir);
-        println!("removed {}", dir.display());
+    if purge {
+        if let Some(dir) = config::config_path().and_then(|p| p.parent().map(|d| d.to_path_buf())) {
+            let _ = fs::remove_dir_all(&dir);
+            println!("removed {}", dir.display());
+        }
     }
     Ok(())
 }

@@ -7,8 +7,9 @@
 [![CI](https://github.com/NasirA1991/honrp/actions/workflows/ci.yml/badge.svg)](https://github.com/NasirA1991/honrp/actions/workflows/ci.yml)
 [![AUR](https://img.shields.io/badge/AUR-honrp--bin-1793D1?logo=archlinux&logoColor=white)](https://aur.archlinux.org/packages/honrp-bin)
 
-Discord Rich Presence for **Heroes of Newerth: Reborn** (the Juvio client) on Linux —
-Steam/Proton, Lutris, Heroic, Faugus, Bottles, or plain Wine.
+Discord Rich Presence for **Heroes of Newerth: Reborn** (the Juvio client) on
+**Linux and Windows**. On Linux it works with Steam/Proton, Lutris, Heroic,
+Faugus, Bottles or plain Wine; on Windows it uses the native client.
 
 ## States
 
@@ -36,6 +37,18 @@ curl -fsSL https://github.com/NasirA1991/honrp/releases/latest/download/install.
 ```
 
 Arch Linux: `paru -S honrp-bin` (or `yay -S honrp-bin`), then run `honrp install`.
+The package includes the desktop entry and hicolor icons:
+
+```bash
+honrp                 # control window
+honrp run             # background daemon (systemd runs this for you)
+```
+
+Linux GUI requirements: a Wayland or X11 session, `libxkbcommon`,
+`libwayland-client`, the X11 cursor/input/randr libraries, and a Vulkan-capable
+driver (Mesa). The `.deb`, `.rpm` and AUR packages declare them; if you use the
+standalone tarball, install your distro's equivalents. `cargo build --release
+--no-default-features` builds the old headless CLI.
 
 The AUR package installs the binary; `honrp install` is the **per-user** setup
 step because pacman runs as root and cannot write into your Wine prefix (which
@@ -73,11 +86,12 @@ application.
 
 ```bash
 honrp uninstall           # removes the Lua bridge and the service/autostart
+honrp uninstall --purge   # also removes ~/.config/honrp
 paru -R honrp-bin         # or: yay -R honrp-bin
 ```
 
-`~/.config/honrp/config.json` is left in place so reinstalling keeps your
-settings.
+`~/.config/honrp/config.json` is left in place by default so reinstalling
+keeps your settings.
 
 ## Finding HoN
 
@@ -244,8 +258,12 @@ changed after that point. It is deliberately detailed so a Linux session can
 review the work and port/verify the UI without re-deriving it.
 
 **Status:** Windows build tested by hand (screenshots, installer, daemon, Lua
-bridge, Discord states); Linux compiles in CI (`rust` job) but the Linux GUI
-has **not been run** yet. See `docs/PORTING-LINUX.md` for the port checklist.
+bridge, Discord states). Linux GUI has been verified on Wayland (KDE) and X11:
+window opens, resizes for Config/dialogs (480×236), single-instance lock,
+daemon spawn/adopt, Discord-ready state, bridge sync to build 13, and the
+desktop/icons packaging wiring. The rfd folder picker, updater against a real
+newer release, and an end-to-end in-game match with this UI build are still
+unverified.
 
 A standalone, file-by-file handoff for another agent is in
 **[docs/BRANCH-CHANGES.md](docs/BRANCH-CHANGES.md)** — it covers the UI spec,
@@ -302,7 +320,7 @@ The old single process became two:
 - **Secondary controls:** Config and Menu sit on the right of the action row;
   `Launch at startup` (toggle on Windows; a command dialog on Linux) sits
   below; a faint separator separates the footer.
-- **Footer:** `honrp 0.3.3 · Up to date` is a link; it checks GitHub. When an
+- **Footer:** `honrp 0.3.4 · Up to date` is a link; it checks GitHub. When an
   update exists, an **Install x.y.z** button appears. Messages (stopped,
   saved, failed) reuse this line, and clear when Rich Presence starts again
   (stale-message bug fixed).
@@ -450,7 +468,7 @@ The old single process became two:
 
 ### 9. Verification
 
-- `cargo test` — **15 tests**: activity, config/update versions, bridge sync,
+- `cargo test` — **16 tests**: activity, config/update versions, bridge sync,
   Discord-state table, etc.
 - Lua harnesses: `tests/test_lua_mod.lua`, `tests/test_lua_reload.lua`.
 - CI run for this branch: ✓ Lua, ✓ Linux rust build, ✓ Windows build
@@ -459,32 +477,31 @@ The old single process became two:
 - Manual: dark/light screenshots, all simulated Discord states, stop/start
   confirmation, details/settings dialogs, installer icon, no leftover conhost,
   start/stop message transition.
-- **Unverified:** Linux GUI runtime (window, resize, wgpu, portals, theme),
-  Linux packaging installation, the updater against a real newer release,
-  keyboard activation beyond the focused Cancel (Enter/Escape relied on egui’s
-  focused-button behaviour), and an actual end-to-end in-game match on this
-  build (the bridge was verified separately in game before the UI work).
+- **Verified on Linux:** window and wgpu rendering on Wayland/KDE and X11,
+  programmatic resize to 480×264 frame for Config (480×236 inner), single
+  instance, daemon spawn/adopt, Discord-ready probe, bridge sync to build 13.
+- **Still unverified:** rfd portal picker, updater against a real newer
+  release, keyboard activation beyond the focused Cancel (Enter/Escape relied
+  on egui’s focused-button behaviour), and an actual end-to-end in-game match
+  on this UI build (the bridge was verified separately in game before the UI
+  work).
 
 ### 10. Linux port and release
 
-The current Linux state: CI compiles the GUI and daemon; nothing runtime-tested.
-`docs/PORTING-LINUX.md` is the handoff checklist (deps, renderer, dynamic
-resize, icon/desktop entry, Discord variants, Proton detection, bridge, rfd,
-autostart, packaging, release).
+The Linux GUI is now runtime-verified on Wayland/KDE and X11 (see above);
+`docs/PORTING-LINUX.md` is the original checklist. The desktop entry and
+hicolor icon tree are wired into `nfpm.yaml`, the release tarball and the Arch
+PKGBUILD, so the package installs a normal app-menu entry.
 
-`packaging/honrp.desktop` and `assets/icons/hicolor/` are already in the repo;
-they still need to be wired into `nfpm.yaml`, the release tarball and the Arch
-PKGBUILD.
-
-Release (after the Linux verification): bump `Cargo.toml` to `0.3.4`, update
-`CHANGELOG.md`, commit, tag `v0.3.4`, push the tag. `.github/workflows/release.yml`
+Release: `Cargo.toml` is already at `0.3.4`; commit, tag `v0.3.4`, push the
+tag. `.github/workflows/release.yml`
 then builds the Linux tarball, `.deb`, `.rpm`, Arch package and the Windows
 zip/installer. The binaries in `dist/` and the local setup are deliberately not
 committed; GitHub Releases is the distribution channel.
 
 ### 11. Known limitations
 
-- Linux GUI is untested at runtime (the main remaining work).
+- The rfd folder picker and in-app updater have not been exercised on Linux yet.
 - Windows binaries are unsigned (SmartScreen warning).
 - No tray icon by design.
 - `honrp update` is for the standalone tarball; AUR should be updated through

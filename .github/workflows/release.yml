@@ -18,18 +18,21 @@ jobs:
       - name: GUI build deps
         run: sudo apt-get update && sudo apt-get install -y pkg-config libxkbcommon-dev libwayland-dev libegl1-mesa-dev libgl1-mesa-dev
 
-      - name: Build static binary
-        run: RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target x86_64-unknown-linux-gnu
+      - name: Build Linux binary
+        run: cargo build --release
 
       - name: Tarball + checksums
         run: |
           set -e
           mkdir -p dist
-          cp target/x86_64-unknown-linux-gnu/release/honrp dist/honrp-linux-x86_64
+          cp target/release/honrp dist/honrp-linux-x86_64
           cp lua/honrp_mod.lua dist/
           cp config.example.json dist/
           cp LICENSE dist/
           cp install.sh dist/install.sh
+          cp packaging/honrp.desktop dist/
+          mkdir -p dist/icons
+          cp -r assets/icons/hicolor dist/icons/
           (cd dist && sha256sum honrp-linux-x86_64 > honrp-linux-x86_64.sha256)
           tar -czf "honrp-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" -C dist .
           mv "honrp-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" dist/
@@ -88,7 +91,13 @@ jobs:
           cfg_sha="$(sha256sum config.example.json | cut -d' ' -f1)"
           work="$PWD/archbuild"
           rm -rf "$work"; mkdir -p "$work"
-          cp dist/honrp-linux-x86_64 LICENSE config.example.json "$work/"
+          cp dist/honrp-linux-x86_64 LICENSE config.example.json dist/honrp.desktop "$work/"
+          mkdir -p "$work/stage/usr/share/applications" "$work/stage/usr/share/icons"
+          cp dist/honrp.desktop "$work/stage/usr/share/applications/honrp.desktop"
+          cp -r dist/icons/hicolor "$work/stage/usr/share/icons/"
+          tar -czf "$work/honrp-linux-assets.tar.gz" -C "$work/stage" usr
+          rm -rf "$work/stage"
+          assets_sha="$(sha256sum "$work/honrp-linux-assets.tar.gz" | cut -d' ' -f1)"
           cat > "$work/PKGBUILD" <<EOF
           pkgname=honrp-bin
           pkgver=$version

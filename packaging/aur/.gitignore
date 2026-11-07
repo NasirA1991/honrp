@@ -4,3 +4,4 @@ pkg/
 honrp-linux-x86_64
 LICENSE
 config.example.json
+*.tar.gz

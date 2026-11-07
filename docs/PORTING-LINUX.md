@@ -1,8 +1,10 @@
 # Porting the UI to Linux
 
-This branch is the Windows-tested version of the 0.3.3 UI/daemon work. CI
-compiles it on Linux and Windows, but the Linux **GUI has not been run** yet.
-This file is the handoff for the Linux session.
+This branch is the 0.3.4 UI/daemon work. The Linux GUI has now been run on
+Wayland (KDE) and X11; window sizing, single-instance, daemon spawn/adopt,
+Discord-ready state, bridge sync and the desktop/icon packaging were verified.
+The original checklist is kept below for the pieces still unverified (rfd
+portal picker, updater against a newer release, in-game match with this UI).
 
 Read `README.md` → **Implementation notes — everything changed in this branch**
 first. It lists every changed file and why.
@@ -111,7 +113,7 @@ Wire them into:
    git push origin feat/compact-ui-branding v0.3.4
    ```
 3. `.github/workflows/release.yml` builds:
-   - Linux static binary + tarball
+   - Linux binary + tarball
    - `.deb` / `.rpm` (nfpm)
    - Arch package
    - Windows exe/zip + Inno setup

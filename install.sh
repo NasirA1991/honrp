@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Download the latest static honrp binary, install it for this user and set up
+# Download the latest Linux honrp binary, install it for this user and set up
 # the Lua bridge + systemd user service.
 set -euo pipefail
 

@@ -2,3 +2,7 @@ target/
 .venv/
 *.bak
 config.json
+dist/
+archbuild/
+packaging/aur/*.tar.gz
+packaging/aur/icons/

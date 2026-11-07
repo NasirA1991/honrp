@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.4 — 2026-11-07
+
+- Linux port of the egui control window: verified on Wayland (KDE) and X11.
+  Window opens at 480×192, grows to 480×236 for Config/dialogs, single-instance
+  lock, daemon spawn/adopt, Discord-ready state, and programmatic resizing work.
+- Linux bridge sync now happens at daemon start-up even when HoN has not been
+  launched yet, so upgrades from an older embedded bridge no longer wait for a
+  game process.
+- Desktop entry and hicolor icons are installed by the `.deb`/`.rpm`, Arch
+  package and included in the Linux tarball; GUI runtime dependencies are
+  declared.
+- Linux release binary is dynamically linked against the distro's glibc and
+  graphics stack (static glibc is not compatible with the GUI's proc-macro
+  dependencies); Windows stays static-CRT.
+
 ## 0.3.3 — 2026-11-07
 
 - Added `docs/BRANCH-CHANGES.md`: a standalone handoff describing every change

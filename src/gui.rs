@@ -955,11 +955,11 @@ impl eframe::App for HonrpApp {
                     spawn_delayed_uninstall(&unins);
                     ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                 } else {
-                    match crate::uninstall(None) {
+                    match crate::uninstall(None, false) {
                         Ok(()) => {
                             self.message = Some(
-                                "Removed the Lua bridge and settings. Delete this folder (or remove \
-                                 the package) to finish."
+                                "Removed the Lua bridge and service/autostart. Settings were kept; \
+                                 delete them with `honrp uninstall --purge` if you want."
                                     .to_string(),
                             );
                         }
