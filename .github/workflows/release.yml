@@ -152,12 +152,16 @@ jobs:
         run: |
           Compress-Archive -Path target/release/honrp.exe,README-WINDOWS.txt,LICENSE,config.example.json -DestinationPath "honrp-${env:GITHUB_REF_NAME}-windows-x86_64.zip"
 
+      - name: Stage the installer at the artifact root
+        shell: pwsh
+        run: Copy-Item dist/honrp-setup-*.exe .
+
       - uses: actions/upload-artifact@v4
         with:
           name: dist-windows
           path: |
             honrp-*-windows-x86_64.zip
-            dist/honrp-setup-*.exe
+            honrp-setup-*.exe
           if-no-files-found: error
 
   publish:
