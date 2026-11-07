@@ -493,11 +493,8 @@ fn install(
     #[cfg(windows)]
     {
         let _ = no_service;
-        println!("Windows alpha: no installer and no autostart yet.");
-        println!(
-            "Start the daemon while playing: \"{}\" run",
-            std::env::current_exe()?.display()
-        );
+        println!("The Lua bridge is installed. Launch honrp when you play;");
+        println!("the daemon runs in the background while the window is closed.");
     }
     println!("If Discord also shows a separate 'Juvio' game, disable it once in");
     println!("Settings -> Game Activity -> Registered Games (honrp cannot change that list).");
