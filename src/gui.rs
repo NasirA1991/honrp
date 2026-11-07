@@ -16,7 +16,7 @@ use eframe::egui;
 
 use crate::discord_state::DiscordState;
 
-const HELP_URL: &str = "https://github.com/NasirA1991/honrp#help--troubleshooting";
+const HELP_URL: &str = "https://github.com/NasirA1991/honrp";
 
 const WINDOW_W: f32 = 480.0;
 const MAIN_BASE: f32 = 192.0;
@@ -402,8 +402,16 @@ impl HonrpApp {
     fn menu(&mut self, ui: &mut egui::Ui) {
         let p = palette(ui.visuals().dark_mode);
         ui.set_min_width(210.0);
-        if ui.button("Help / Troubleshooting").clicked() {
-            open_url(HELP_URL);
+        if ui
+            .button("Help")
+            .on_hover_text("Open the Help section in the README")
+            .clicked()
+        {
+            let url = format!(
+                "{HELP_URL}/blob/v{}/README.md#help",
+                env!("CARGO_PKG_VERSION")
+            );
+            open_url(&url);
         }
         if ui.button("Discord setup...").clicked() {
             self.notice_open = true;

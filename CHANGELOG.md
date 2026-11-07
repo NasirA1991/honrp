@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.7 — 2026-11-07
+
+- The app's Menu entry is now just **Help** and opens the README's `#help`
+  section for the installed release, where the common complaints and fixes
+  live. Removed the oversized in-app Help modal.
+- Rewrote the README Help section as a quick problem/fix table (Discord
+  "Playing honrp", Wayland icon, Discord socket, no KDA, duplicate Juvio,
+  SmartScreen, game folder, service and updates), with Windows/Linux detail
+  folded underneath.
+
 ## 0.3.6 — 2026-11-07
 
 - Branding pass: new install-first README with the banner, icon and state art;

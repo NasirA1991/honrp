@@ -32,7 +32,7 @@ A small panel: 480x192 normally, growing by 24 px for an action hint, and to
     Closing this window keeps Rich Presence running in the background.
     ( ) Launch at startup
     ─────────────────────────────────────────────
-    honrp 0.3.6 · Up to date
+    honrp 0.3.7 · Up to date
 
 - The first line shows observable states, separately: Rich Presence on (green)
   or off (grey), then Discord. **Discord ready** means Discord's IPC endpoint
@@ -50,14 +50,14 @@ A small panel: 480x192 normally, growing by 24 px for an action hint, and to
   **Launch at startup...**, which opens a dialog with the copyable
   `honrp install` / `honrp uninstall` commands. A faint separator sits above
   the footer.
-- The footer **honrp 0.3.6 · Up to date** is a link: click it to check for
+- The footer **honrp 0.3.7 · Up to date** is a link: click it to check for
   updates. When one exists, an **Install x.y.z** button appears next to it.
 - **Config** opens a settings screen: the Heroes of Newerth documents folder
   (with **Browse...** / **Open folder**) and an optional Discord IPC socket
   override. Empty means auto-detect; honrp needs no Discord install path.
-- The **Menu** button holds **Help / Troubleshooting** (opens this README's
-  troubleshooting section in the browser), **Discord setup...** (the
-  Registered Games note, also shown once on first start), **Details...**
+- The **Menu** button holds **Help** (opens the Help section of the online
+  README in the browser), **Discord setup...** (the Registered Games note,
+  also shown once on first start), **Details...**
   (version, bridge build, daemon/Discord/game state, game folder, log path)
   and **Uninstall...**. There is no separate Close or Quit button: X closes
   the window, nothing else.

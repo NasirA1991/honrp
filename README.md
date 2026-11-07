@@ -98,29 +98,43 @@ The art above is an illustrative render of the card payloads, not a Discord scre
 - **A proper desktop app.** A compact native window for status, settings and updates — no browser, no tray icon, no console left behind.
 - **Private by default.** It talks only to Discord's local socket; no telemetry, no analytics, no account login.
 
-## Troubleshooting
+## Help
+
+These cover almost every report. Click **Help** in the app to come back here.
+
+| Problem | Easy fix |
+|---|---|
+| Discord says **Playing honrp** while Rich Presence is off | That is Discord's process detection, not honrp. Use the installed app rather than a checkout under a `Games/` folder, then remove or disable **honrp** in Discord **Settings → Registered Games**. |
+| Generic icon on Wayland / taskbar | Run `honrp install` once with the installed binary. It writes the desktop entry and hicolor icons; restart honrp, or log out and back in if the old icon is cached. |
+| **Discord not running** / **Can't connect to Discord** | Start Discord. Flatpak Discord uses a different socket: set it in **Config → Discord IPC socket** (`$XDG_RUNTIME_DIR/app/com.discordapp.Discord/discord-ipc-0`). `honrp doctor` lists every socket it tries. |
+| No hero, level or KDA | Restart Heroes of Newerth after installing or updating. `honrp doctor` shows whether the Lua bridge is loaded. |
+| Two cards: honrp **and** Juvio | Disable `juvio.exe` once in Discord **Settings → Game Activity → Registered Games**. honrp cannot change that list. |
+| Windows SmartScreen warning | The build is unsigned: choose **More info → Run anyway**, or right-click the zip → **Properties → Unblock** before extracting. |
+| `honrp install` cannot find HoN | Start HoN once, or pick the folder in **Config → Game folder**, or pass `--user-dir`. |
+| No window on Wayland / VM | The window needs a Vulkan-capable driver. `honrp run` starts the same daemon headlessly. |
+| Linux service is not running | `systemctl --user status honrp`, then `journalctl --user -u honrp`; rerun `honrp install` if needed. |
+| Updating | AUR: `paru -Syu` or `yay -Syu`. Standalone tarball: `honrp update`. |
+
+### Still stuck?
 
 <details>
-<summary><b>Windows</b> — common problems</summary>
+<summary><b>Windows</b> — more detail</summary>
 
-- **SmartScreen blocks the installer or updater** — the build is unsigned. Choose **More info → Run anyway**, or right-click the downloaded zip → **Properties → Unblock** before extracting. Updates need `curl` and `tar`, which ship with Windows 10+.
-- **"Playing honrp" in Discord while Rich Presence is off** — that is Discord's own process detection, not honrp's Rich Presence. Remove or disable **honrp** in Discord **Settings → Registered Games**. Running the installed app (not a checkout under a `Games/` folder) avoids it.
-- **The card stays on Main Menu / no hero or KDA** — restart Heroes of Newerth after setup. `honrp.exe doctor` shows whether the bridge is loaded.
-- **Discord shows a second "Juvio" card** — disable Juvio once in Discord **Settings → Game Activity → Registered Games**; honrp cannot change that list.
-- **Uninstall** — Windows Settings → Apps → honrp. The uninstaller stops the daemon and removes the bridge block from `startup.lua`.
+- **Portable zip:** run `honrp.exe install` once from the extracted folder, then open `honrp.exe`. The installer does the same setup automatically.
+- **Uninstall:** Windows Settings → Apps → honrp. The uninstaller stops the daemon and removes the managed bridge block from `startup.lua`; content you added outside that block is kept.
+- **Logs and diagnostics:** `honrp.exe doctor`, and `%APPDATA%\honrp\daemon.log`.
+- **Updater requirements:** `curl` and `tar`; both ship with Windows 10 and 11.
 
 </details>
 
 <details>
-<summary><b>Linux</b> — common problems</summary>
+<summary><b>Linux</b> — more detail</summary>
 
-- **The taskbar shows a generic Wayland icon** — run `honrp install` once with the installed binary. It writes `~/.local/share/applications/honrp.desktop` and the matching hicolor icons; restart honrp (or log out and back in) if the old icon is cached. Running a checkout straight from `target/release/` has no desktop entry to associate with.
-- **Discord says "Playing honrp" while Rich Presence is off** — this is Discord's process detection, not honrp's RPC. It is triggered by running a checkout under a folder such as `.../Games/.../target/release/honrp`; the installed `/usr/bin/honrp` is not detected. Remove/disable **honrp** in Discord **Settings → Registered Games**.
-- **"Discord not running" or "Can't connect to Discord"** — check `honrp doctor` for the sockets it tries. Flatpak Discord often uses a different socket; set it in **Config → Discord IPC socket** (for example `$XDG_RUNTIME_DIR/app/com.discordapp.Discord/discord-ipc-0`).
-- **No card / no hero or KDA** — restart Heroes of Newerth after `honrp install` or an update. The bridge is embedded in the binary and rewritten when the daemon starts.
-- **Service state** — `systemctl --user status honrp` and `journalctl --user -u honrp`.
-- **No window on Wayland/VM** — the GUI needs a working Vulkan driver. `honrp run` runs the same daemon headlessly.
-- **Updates** — `paru -Syu` / `yay -Syu` for the AUR package; `honrp update` for the standalone tarball.
+- **Prefix/game folder:** run `honrp doctor` after starting HoN once. Override with `honrp install --prefix <pfx>` or `--user-dir <dir>`, or set `user_dir` in **Config**.
+- **Bridge updates:** the Lua bridge is embedded in the binary and rewritten when the daemon starts; restart HoN afterwards. `honrp doctor` prints the loaded build.
+- **Service:** `systemctl --user status honrp` and `journalctl --user -u honrp`; `honrp install` recreates the unit.
+- **Logs:** `~/.config/honrp/daemon.log`.
+- **AUR vs tarball:** use `paru -Syu` for the AUR package; `honrp update` is for the standalone tarball.
 
 </details>
 
