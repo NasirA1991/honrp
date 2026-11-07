@@ -18,6 +18,11 @@ pub struct Config {
     pub show_kda: bool,
     pub short_maps: bool,
     pub ipc_socket: String,
+    /// Check GitHub for a newer honrp once a day and print a notice.
+    pub check_updates: bool,
+    /// Manual override for the game's user directory (Documents/Juvio/... or
+    /// a Wine prefix's Documents folder). Empty means auto-detect.
+    pub user_dir: String,
 }
 
 impl Default for Config {
@@ -32,6 +37,8 @@ impl Default for Config {
             show_kda: true,
             short_maps: true,
             ipc_socket: String::new(),
+            check_updates: true,
+            user_dir: String::new(),
         }
     }
 }

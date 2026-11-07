@@ -89,7 +89,7 @@ fn map_label(id: &str, short: bool) -> String {
     }
     if short {
         match key.as_str() {
-            "caldavar" | "caldavarphoenix" => return "FoW".into(),
+            "caldavar" | "caldavarphoenix" => return "FoC".into(),
             "midwars" => return "Mid Wars".into(),
             "fieldtest" => return "Field Test".into(),
             _ => {}
@@ -355,7 +355,7 @@ mod tests {
             ..view()
         };
         let a = build(&v, &cfg()).unwrap();
-        assert_eq!(a.details, "Ranked \u{2022} FoW \u{2022} Banning Pick");
+        assert_eq!(a.details, "Ranked \u{2022} FoC \u{2022} Banning Pick");
         assert_eq!(a.state, "Pyromancer \u{2022} Lv 12 \u{2022} 4/2/7");
         assert!(a.start.is_none()); // timer off by default
     }
@@ -394,7 +394,7 @@ mod tests {
         };
         assert!(in_pregame(&v));
         let a = build(&v, &cfg()).unwrap();
-        assert_eq!(a.details, "Ranked \u{2022} FoW \u{2022} All Pick");
+        assert_eq!(a.details, "Ranked \u{2022} FoC \u{2022} All Pick");
         assert_eq!(a.state, "Hero Select");
     }
 
@@ -428,7 +428,7 @@ mod tests {
         };
         assert!(is_spectating(&v));
         let a = build(&v, &cfg()).unwrap();
-        assert_eq!(a.details, "Spectating \u{2022} FoW");
+        assert_eq!(a.details, "Spectating \u{2022} FoC");
         assert_eq!(a.state, "Watching Master Of Arms");
     }
 
@@ -445,7 +445,7 @@ mod tests {
         };
         assert!(!is_spectating(&v));
         let a = build(&v, &cfg()).unwrap();
-        assert_eq!(a.details, "FoW");
+        assert_eq!(a.details, "FoC");
         assert_eq!(a.state, "Pyromancer");
     }
 

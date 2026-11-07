@@ -1,8 +1,8 @@
 [package]
 name = "honrp"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.95"
 description = "Discord Rich Presence for Heroes of Newerth on Linux and Windows"
 license = "MIT"
 repository = "https://github.com/NasirA1991/honrp"
@@ -10,16 +10,39 @@ readme = "README.md"
 keywords = ["discord", "rich-presence", "heroes-of-newerth", "proton", "wine"]
 categories = ["games", "command-line-utilities"]
 
+[features]
+default = ["gui"]
+gui = ["dep:eframe", "dep:rfd"]
+
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 dirs = "5"
+sha2 = "0.10"
+eframe = { version = "0.37", optional = true, default-features = false, features = [
+  "default_fonts",
+  "wayland",
+  "wgpu",
+  "x11",
+] }
+rfd = { version = "0.17", optional = true }
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 signal-hook = "0.3"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_System_Console",
+  "Win32_System_Pipes",
+  "Win32_UI_WindowsAndMessaging",
+] }
 
 [profile.release]
 opt-level = "z"

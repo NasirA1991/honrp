@@ -15,6 +15,9 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: GUI build deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libxkbcommon-dev libwayland-dev libegl1-mesa-dev libgl1-mesa-dev
+
       - name: Build static binary
         run: RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target x86_64-unknown-linux-gnu
 
@@ -129,14 +132,24 @@ jobs:
       - name: Build Windows binary
         run: cargo build --release
 
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" "packaging\honrp.iss"
+
       - name: Package Windows zip
         run: |
-          Compress-Archive -Path target/release/honrp.exe,README-WINDOWS.txt,LICENSE -DestinationPath "honrp-${env:GITHUB_REF_NAME}-windows-x86_64.zip"
+          Compress-Archive -Path target/release/honrp.exe,README-WINDOWS.txt,LICENSE,config.example.json -DestinationPath "honrp-${env:GITHUB_REF_NAME}-windows-x86_64.zip"
 
       - uses: actions/upload-artifact@v4
         with:
           name: dist-windows
-          path: honrp-*-windows-x86_64.zip
+          path: |
+            honrp-*-windows-x86_64.zip
+            dist/honrp-setup-*.exe
+          if-no-files-found: error
 
   publish:
     needs: [build, packages, arch, windows]

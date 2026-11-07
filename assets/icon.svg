@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<rect width="512" height="512" fill="#160D29"/>
+<rect x="18" y="18" width="476" height="476" rx="94" fill="none" stroke="#833BFA" stroke-width="12"/>
+
+<!-- hood silhouette -->
+<path d="M104 306 C116 232 164 144 258 91 L356 184 C331 203 316 239 311 282 L278 308 L239 282 L203 310 L168 286 Z" fill="#FFB627"/>
+<!-- dark face opening -->
+<path d="M165 284 C177 210 216 160 261 145 C303 166 319 211 302 273 L269 295 L237 274 L204 298 Z" fill="#160D29"/>
+<!-- eyes -->
+<path d="M198 231 Q219 214 242 232 Q223 251 198 231Z" fill="#FFD34E"/>
+<path d="M253 232 Q276 214 298 231 Q273 251 253 232Z" fill="#FFD34E"/>
+<!-- bridge deck and three openings -->
+<path d="M78 358 Q256 314 434 358 L434 416 L78 416Z" fill="#BE8BFF"/>
+<path d="M128 416 V400 C128 377 146 359 169 359 C192 359 210 377 210 400 V416Z" fill="#160D29"/>
+<path d="M215 416 V394 C215 364 233 344 256 344 C279 344 297 364 297 394 V416Z" fill="#160D29"/>
+<path d="M302 416 V400 C302 377 320 359 343 359 C366 359 384 377 384 400 V416Z" fill="#160D29"/>
+<!-- speech bubble -->
+<path d="M325 176 C325 143 351 119 389 119 C427 119 452 143 452 176 C452 210 427 231 391 231 L370 255 L371 227 C343 220 325 201 325 176Z" fill="#833BFA" stroke="#FFFFFF" stroke-width="9" stroke-linejoin="round"/>
+<circle cx="369" cy="176" r="7.5" fill="#FFFFFF"/>
+<circle cx="390" cy="176" r="7.5" fill="#FFFFFF"/>
+<circle cx="411" cy="176" r="7.5" fill="#FFFFFF"/>
+
+</svg>

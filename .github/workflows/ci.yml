@@ -12,6 +12,9 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: GUI build deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libxkbcommon-dev libwayland-dev libegl1-mesa-dev libgl1-mesa-dev
+
       - name: Rust tests
         run: cargo test
 
@@ -27,7 +30,9 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y lua5.1
 
       - name: Lua bridge tests (mocked engine)
-        run: lua5.1 tests/test_lua_mod.lua lua/honrp_mod.lua
+        run: |
+          lua5.1 tests/test_lua_mod.lua lua/honrp_mod.lua
+          lua5.1 tests/test_lua_reload.lua lua/honrp_mod.lua
 
   windows:
     runs-on: windows-latest
@@ -41,3 +46,13 @@ jobs:
 
       - name: Windows release build
         run: cargo build --release
+
+      - name: Package Windows zip
+        run: |
+          Compress-Archive -Path target/release/honrp.exe,README-WINDOWS.txt,LICENSE,config.example.json -DestinationPath "honrp-windows-x86_64-ci.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: honrp-windows-x86_64-ci
+          path: honrp-windows-x86_64-ci.zip
+          if-no-files-found: error

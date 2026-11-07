@@ -54,12 +54,21 @@ pub fn socket_paths(override_path: Option<&str>) -> Vec<PathBuf> {
         dirs.push(runtime.join("snap.discord"));
         dirs.push(runtime.join("app/dev.vencord.Vesktop"));
         dirs.push(runtime.join("app/com.vesktop.vencord.Vesktop"));
+        dirs.push(runtime.join("app/com.discordapp.Discord"));
+        dirs.push(runtime.join("app/com.discordapp.DiscordCanary"));
+        dirs.push(runtime.join("app/com.discordapp.DiscordPTB"));
+        dirs.push(runtime.join("discordcanary"));
     }
     if let Some(home) = std::env::var_os("HOME") {
         let home = PathBuf::from(home);
         dirs.push(home.join(".var/app/com.discordapp.Discord/config/discord"));
         dirs.push(home.join(".var/app/com.discordapp.Discord/tmp"));
+        dirs.push(home.join(".var/app/com.discordapp.DiscordCanary/config/discord"));
+        dirs.push(home.join(".var/app/com.discordapp.DiscordCanary/tmp"));
+        dirs.push(home.join(".var/app/com.discordapp.DiscordPTB/config/discord"));
+        dirs.push(home.join(".var/app/com.discordapp.DiscordPTB/tmp"));
         dirs.push(home.join("snap/discord/current/.config/discord"));
+        dirs.push(home.join("snap/discord-canary/current/.config/discord"));
         dirs.push(home.join(".var/app/dev.vencord.Vesktop/config/vesktop"));
     }
     let mut out = Vec::new();
@@ -89,6 +98,42 @@ pub fn socket_paths(override_path: Option<&str>) -> Vec<PathBuf> {
     (0..10)
         .map(|i| PathBuf::from(format!(r"\\.\pipe\discord-ipc-{i}")))
         .collect()
+}
+
+/// Whether a Discord IPC endpoint exists right now (Discord running), without
+/// performing the handshake. Used only for reporting state in the UI.
+#[cfg(unix)]
+pub fn available(override_path: Option<&str>) -> bool {
+    socket_paths(override_path)
+        .iter()
+        .any(|path| path.exists() && UnixStream::connect(path).is_ok())
+}
+
+#[cfg(windows)]
+pub fn available(override_path: Option<&str>) -> bool {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Foundation::GetLastError;
+    use windows_sys::Win32::System::Pipes::WaitNamedPipeW;
+
+    // ERROR_SEM_TIMEOUT / ERROR_PIPE_BUSY mean the endpoint exists but all
+    // instances are busy - that is "found", not "missing".
+    const ERROR_SEM_TIMEOUT: u32 = 121;
+    const ERROR_PIPE_BUSY: u32 = 231;
+
+    for path in socket_paths(override_path) {
+        let mut wide: Vec<u16> = path.as_os_str().encode_wide().collect();
+        wide.push(0);
+        // 0 ms: returns immediately
+        let ok = unsafe { WaitNamedPipeW(wide.as_ptr(), 0) };
+        if ok != 0 {
+            return true;
+        }
+        let err = unsafe { GetLastError() };
+        if err == ERROR_SEM_TIMEOUT || err == ERROR_PIPE_BUSY {
+            return true;
+        }
+    }
+    false
 }
 
 pub struct DiscordIpc {
@@ -270,13 +315,13 @@ mod tests {
         });
 
         let mut ipc = DiscordIpc::connect("1234567890", Some(path.to_str().unwrap())).unwrap();
-        ipc.set_activity(&json!({"details":"FoW","state":"Pyromancer"}), 4242)
+        ipc.set_activity(&json!({"details":"FoC","state":"Pyromancer"}), 4242)
             .unwrap();
         let frames = server.join().unwrap();
         assert_eq!(frames[0]["client_id"], "1234567890");
         assert_eq!(frames[1]["cmd"], "SET_ACTIVITY");
         assert_eq!(frames[1]["args"]["pid"], 4242);
-        assert_eq!(frames[1]["args"]["activity"]["details"], "FoW");
+        assert_eq!(frames[1]["args"]["activity"]["details"], "FoC");
         let _ = std::fs::remove_file(&path);
     }
 }

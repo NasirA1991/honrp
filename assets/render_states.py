@@ -36,11 +36,11 @@ STATE = (170, 175, 182)
 
 # (pill, details, state) - in the order build_activity() produces them.
 CARDS = [
-    ("In match", "Ranked \u2022 FoW \u2022 Banning Pick",
+    ("In match", "Ranked \u2022 FoC \u2022 Banning Pick",
      "Pyromancer \u2022 Lv 12 \u2022 4/2/7"),
     ("In queue", "Searching for a match", "In queue"),
-    ("Hero select", "Ranked \u2022 FoW \u2022 All Pick", "Hero Select"),
-    ("Spectating", "Spectating \u2022 FoW", "Watching Master Of Arms"),
+    ("Hero select", "Ranked \u2022 FoC \u2022 All Pick", "Hero Select"),
+    ("Spectating", "Spectating \u2022 FoC", "Watching Master Of Arms"),
     ("Main menu", "Main Menu", "evilleader"),
     ("Plinko", "Playing Plinko", "evilleader"),
 ]

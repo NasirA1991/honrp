@@ -112,8 +112,44 @@ INFO_MAP name:"fieldtest" version:"0.0.0"
 INFO_SETTINGS mode:"Mode_Normal" options:"Option_None"
 ```
 
-the daemon parses it for the map/mode and uses `INFO_DATE` as the presence
-timestamp, so the elapsed clock matches the actual match.
+the daemon parses it for the map/mode (the presence timer itself comes from the
+HUD's `MatchClock` trigger, which is why it matches the real match clock).
+
+Two caveats found on Windows (2026-11-07):
+
+* Practice games — the "Learn → Practice" flow and `PlayerHosted:CreatePracticeGame`
+  — set `gameVars.map = 'fieldtest'` (`ui/scripts/fe3/hero_list.lua:242`), so
+  `Field Test • All Pick` is the *correct* presence for a practice match. A
+  server-hosted match does not write a `logs/game_*.log` at all (only the local
+  practice/custom game did in our captures); for those the map/mode has to come
+  from the Lua bridge's `Lobby.lobbyGameInfo` / `LobbyGameInfo` watch.
+* The log is a **local** match log, so `matchlog::newest` can show a stale map if
+  the daemon joins mid-session and no new log is created.
+
+### The `main.interface` rebuild (why build 9 went silent)
+
+On Windows the client applies the saved video mode right after `CHost::Init`:
+the console log shows `Wrote …/startup.cfg`, `Frame latency`, `Restarting
+Direct3D`, the fontmaps reloading, and then a second
+
+```
+Loading ^mInterface^* '/ui/fe3/main.interface'
+```
+
+That re-execution does three things to a `startup.lua` mod:
+
+1. every interface widget is destroyed, including the one the bridge put its
+   `Sleep(1000, …)` timer and `SetCallback('onframe', …)` on;
+2. `main.interface`'s `onloadlua` runs again (`Main:Init()`), but a one-shot
+   `if started then return end` guard skips re-arming;
+3. every `Main.*` key is reassigned.  Lua only calls a table's `__newindex`
+   for keys that **do not exist yet**, so the wrapper installed on the first
+   load is silently replaced by the plain function — the `Main` hook cannot
+   re-arm itself even if it wanted to.
+
+The engine's global `Trigger()` is *not* reassigned by the rebuild, and
+`Main:FSPanelToggle` calls `Trigger('FSPanelTrigger', panelName)` for every
+panel change, so bridge build 10 wraps `Trigger` and re-arms from there.
 
 ---
 

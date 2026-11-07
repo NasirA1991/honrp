@@ -1,11 +1,17 @@
 mod activity;
 mod config;
+mod control;
 mod detect;
+mod discord_state;
+#[cfg(feature = "gui")]
+mod gui;
 mod ipc;
 mod matchlog;
 mod modstate;
 mod run;
+mod status;
 mod tail;
+mod update;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -35,8 +41,11 @@ struct Cli {
     config: Option<PathBuf>,
     #[arg(short, long, global = true)]
     verbose: bool,
+    /// Start the Windows control window minimised (used by autostart)
+    #[arg(long, global = true, hide = true)]
+    minimized: bool,
     #[command(subcommand)]
-    cmd: Cmd,
+    cmd: Option<Cmd>,
 }
 
 #[derive(Subcommand)]
@@ -51,6 +60,8 @@ enum Cmd {
         #[arg(long, value_name = "PATH")]
         ipc_socket: Option<String>,
     },
+    /// Stop the background daemon
+    Stop,
     /// Show what the daemon currently sees
     Status {
         #[arg(long)]
@@ -81,6 +92,12 @@ enum Cmd {
         #[arg(long, value_name = "DIR")]
         user_dir: Option<PathBuf>,
     },
+    /// Install the latest GitHub release over this binary
+    Update {
+        /// Only check for a newer release, do not install it
+        #[arg(long)]
+        check: bool,
+    },
     /// Manage the systemd user service
     Service {
         #[command(subcommand)]
@@ -99,29 +116,56 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     let cfg = Config::load(cli.config.as_deref());
     match cli.cmd {
-        Cmd::Run {
+        Some(Cmd::Run {
             dry_run,
             user_dir,
             ipc_socket,
-        } => run::run(
-            &cfg,
-            RunOpts {
-                dry_run,
-                verbose: cli.verbose,
-                user_dir,
-                ipc_socket,
-            },
-        ),
-        Cmd::Status { json, user_dir } => status(&cfg, json, user_dir),
-        Cmd::Doctor { user_dir } => doctor(&cfg, user_dir),
-        Cmd::Install {
+        }) => {
+            hide_console_if_sole();
+            run::run(
+                &cfg,
+                RunOpts {
+                    dry_run,
+                    verbose: cli.verbose,
+                    user_dir,
+                    ipc_socket,
+                },
+            )
+        }
+        Some(Cmd::Stop) => {
+            if control::stop() {
+                println!("daemon stopped");
+            } else {
+                println!("no daemon is running");
+            }
+            Ok(())
+        }
+        Some(Cmd::Status { json, user_dir }) => status(&cfg, json, user_dir),
+        Some(Cmd::Doctor { user_dir }) => doctor(&cfg, user_dir),
+        Some(Cmd::Install {
             user_dir,
             prefix,
             client_id,
             no_service,
-        } => install(user_dir, prefix, client_id, no_service),
-        Cmd::Uninstall { user_dir } => uninstall(user_dir),
-        Cmd::Service { action } => service_dispatch(action),
+        }) => install(user_dir, prefix, client_id, no_service),
+        Some(Cmd::Uninstall { user_dir }) => uninstall(user_dir),
+        Some(Cmd::Update { check }) => update::run(check),
+        Some(Cmd::Service { action }) => service_dispatch(action),
+        None => {
+            #[cfg(feature = "gui")]
+            {
+                let _ = cli.minimized;
+                return gui::run();
+            }
+            #[cfg(not(feature = "gui"))]
+            {
+                use clap::CommandFactory;
+                let _ = &cfg;
+                Cli::command().print_help()?;
+                println!();
+                Ok(())
+            }
+        }
     }
 }
 
@@ -145,6 +189,8 @@ fn status(cfg: &Config, as_json: bool, user_dir: Option<PathBuf>) -> Result<()> 
         None
     };
     let installed = ud.as_ref().map(|d| mod_installed(d)).unwrap_or(false);
+    let bridge_build = ud.as_ref().and_then(|d| mod_build(d));
+    let expected_build = mod_build_from(MOD_SRC);
 
     if as_json {
         let out = json!({
@@ -155,7 +201,8 @@ fn status(cfg: &Config, as_json: bool, user_dir: Option<PathBuf>) -> Result<()> 
             })),
             "user_dir": ud,
             "mod_installed": installed,
-            "mod_build": ud.as_ref().and_then(|d| mod_build(d)),
+            "mod_build": bridge_build,
+            "mod_build_expected": expected_build,
             "state": {
                 "in_game": view.in_game,
                 "in_queue": view.in_queue,
@@ -217,6 +264,18 @@ fn status(cfg: &Config, as_json: bool, user_dir: Option<PathBuf>) -> Result<()> 
             "not installed"
         }
     );
+    if installed {
+        println!(
+            "            build {:?} (binary ships {})",
+            bridge_build,
+            expected_build
+                .map(|b| b.to_string())
+                .unwrap_or_else(|| "?".into())
+        );
+        if bridge_build != expected_build {
+            println!("            out of date: `honrp run` or `honrp install` updates it");
+        }
+    }
     Ok(())
 }
 
@@ -369,13 +428,31 @@ fn install(
 }
 
 fn uninstall(user_dir: Option<PathBuf>) -> Result<()> {
+    // a running daemon holds the exe open on Windows
+    let _ = control::stop();
     #[cfg(unix)]
     let _ = service_uninstall();
     if let Some(ud) = resolve_user_dir(user_dir, None) {
         mod_uninstall(&ud)?;
         println!("removed the Lua bridge from {}", ud.display());
     } else {
-        println!("user dir not found; only the service was removed");
+        println!("user dir not found; could not remove the Lua bridge");
+    }
+    #[cfg(windows)]
+    {
+        let _ = Command::new("reg")
+            .args([
+                "delete",
+                r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run",
+                "/v",
+                "honrp",
+                "/f",
+            ])
+            .status();
+    }
+    if let Some(dir) = config::config_path().and_then(|p| p.parent().map(|d| d.to_path_buf())) {
+        let _ = fs::remove_dir_all(&dir);
+        println!("removed {}", dir.display());
     }
     Ok(())
 }
@@ -386,8 +463,7 @@ fn mod_installed(ud: &Path) -> bool {
         .unwrap_or(false)
 }
 
-fn mod_build(ud: &Path) -> Option<u32> {
-    let text = fs::read_to_string(ud.join("startup.lua")).ok()?;
+fn mod_build_from(text: &str) -> Option<u32> {
     let idx = text.find("local BUILD = ")? + "local BUILD = ".len();
     text[idx..]
         .chars()
@@ -395,6 +471,23 @@ fn mod_build(ud: &Path) -> Option<u32> {
         .collect::<String>()
         .parse()
         .ok()
+}
+
+fn mod_build(ud: &Path) -> Option<u32> {
+    let text = fs::read_to_string(ud.join("startup.lua")).ok()?;
+    mod_build_from(&text)
+}
+
+/// The bridge ships inside the binary.  Rewrite the managed block whenever the
+/// installed one differs (new build, or any Lua edit), so `honrp run` upgrades
+/// an existing install instead of requiring `honrp install` again.
+fn sync_bridge(ud: &Path) -> Result<bool> {
+    let existing = fs::read_to_string(ud.join("startup.lua")).unwrap_or_default();
+    if existing.contains(MOD_SRC) {
+        return Ok(false);
+    }
+    mod_install(ud)?;
+    Ok(true)
 }
 
 fn strip_managed(mut text: String) -> String {
@@ -600,3 +693,66 @@ fn service_dispatch(_action: ServiceAction) -> Result<()> {
 
 #[allow(dead_code)]
 fn _unused(_: &View) {}
+
+/// A daemon started from the Run key / double-click gets its own console;
+/// hide it.  When launched from a terminal, keep the console (other processes).
+#[cfg(windows)]
+fn hide_console_if_sole() {
+    use windows_sys::Win32::System::Console::{GetConsoleProcessList, GetConsoleWindow};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_HIDE};
+
+    unsafe {
+        let hwnd = GetConsoleWindow();
+        if hwnd.is_null() {
+            return;
+        }
+        let mut pids = [0u32; 2];
+        let count = GetConsoleProcessList(pids.as_mut_ptr(), 2);
+        if count <= 1 {
+            ShowWindow(hwnd, SW_HIDE);
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn hide_console_if_sole() {}
+
+#[cfg(test)]
+mod bridge_tests {
+    use super::*;
+
+    fn scratch(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("honrp-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn embedded_bridge_has_a_build_number() {
+        assert!(mod_build_from(MOD_SRC).unwrap() >= 11);
+    }
+
+    #[test]
+    fn sync_bridge_installs_and_upgrades() {
+        let dir = scratch("bridge-sync");
+        assert!(sync_bridge(&dir).unwrap(), "fresh dir should be installed");
+        assert!(!sync_bridge(&dir).unwrap(), "second run should be a no-op");
+        assert!(sync_bridge(&dir).is_ok());
+        assert_eq!(mod_build(&dir), mod_build_from(MOD_SRC));
+
+        // an older managed block is replaced, user content is preserved
+        fs::write(
+            dir.join("startup.lua"),
+            "-- user content\n--- HONRP BEGIN ---\nlocal BUILD = 1\n--- HONRP END ---\n",
+        )
+        .unwrap();
+        assert!(sync_bridge(&dir).unwrap());
+        let text = fs::read_to_string(dir.join("startup.lua")).unwrap();
+        assert!(text.contains("-- user content"), "user content lost");
+        assert!(text.contains(MOD_SRC), "managed block not replaced");
+        assert_eq!(mod_build(&dir), mod_build_from(MOD_SRC));
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+}

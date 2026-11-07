@@ -7,5 +7,7 @@
   "ipc_socket": "",
   "show_timer": false,
   "show_kda": true,
-  "short_maps": true
+  "short_maps": true,
+  "check_updates": true,
+  "user_dir": ""
 }

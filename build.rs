@@ -1,0 +1,12 @@
+fn main() {
+    println!("cargo:rerun-if-changed=assets/icon.ico");
+    #[cfg(windows)]
+    {
+        let mut res = winresource::WindowsResource::new();
+        res.set_icon("assets/icon.ico");
+        if let Err(e) = res.compile() {
+            // don't fail the build on machines without rc.exe/windres
+            eprintln!("honrp: could not compile the Windows icon resource: {e}");
+        }
+    }
+}

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -18,6 +18,42 @@ fn epoch() -> i64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0)
+}
+
+fn sync_bridge(ud: &Path) {
+    match crate::sync_bridge(ud) {
+        Ok(true) => eprintln!(
+            "honrp: installed the Lua bridge in {} (build {}) - restart Heroes of Newerth once",
+            ud.display(),
+            crate::mod_build_from(crate::MOD_SRC)
+                .map(|b| b.to_string())
+                .unwrap_or_else(|| "?".into())
+        ),
+        Ok(false) => {}
+        Err(e) => eprintln!("honrp: could not update the Lua bridge: {e}"),
+    }
+}
+
+fn log_line(msg: &str) {
+    let Some(dir) = crate::config::config_path().and_then(|p| p.parent().map(|d| d.to_path_buf()))
+    else {
+        return;
+    };
+    let _ = std::fs::create_dir_all(&dir);
+    let path = dir.join("daemon.log");
+    if let Ok(meta) = std::fs::metadata(&path) {
+        if meta.len() > 1_000_000 {
+            let _ = std::fs::remove_file(&path);
+        }
+    }
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    {
+        use std::io::Write;
+        let _ = writeln!(file, "[{}] {}", epoch(), msg);
+    }
 }
 
 pub struct StateMachine {
@@ -246,13 +282,39 @@ pub fn run(cfg: &Config, opts: RunOpts) -> Result<()> {
         );
     }
     let stop = Arc::new(AtomicBool::new(false));
+    if crate::control::running() {
+        eprintln!("honrp: a daemon is already running");
+        return Ok(());
+    }
+    let control_stop = stop.clone();
+    std::thread::spawn(move || crate::control::serve(control_stop));
+    log_line(&format!("daemon starting (pid {})", std::process::id()));
     #[cfg(unix)]
     {
         signal_hook::flag::register(signal_hook::consts::SIGINT, stop.clone())?;
         signal_hook::flag::register(signal_hook::consts::SIGTERM, stop.clone())?;
     }
 
-    let mut sm = StateMachine::new(opts.user_dir.clone());
+    // CLI flag wins, then the manual override from the config (set by the
+    // "Browse" button in the control window), then auto-detection.
+    let explicit_user_dir = opts.user_dir.clone().or_else(|| {
+        let s = cfg.user_dir.trim();
+        if s.is_empty() {
+            None
+        } else {
+            Some(PathBuf::from(s))
+        }
+    });
+    let ipc_override = opts.ipc_socket.clone().or_else(|| {
+        let s = cfg.ipc_socket.trim();
+        if s.is_empty() {
+            None
+        } else {
+            Some(s.to_string())
+        }
+    });
+
+    let mut sm = StateMachine::new(explicit_user_dir.clone());
     sm.poll();
     eprintln!(
         "honrp: watching {}, user dir: {}",
@@ -266,6 +328,32 @@ pub fn run(cfg: &Config, opts: RunOpts) -> Result<()> {
             .unwrap_or_else(|| "?".into())
     );
 
+    // Ship the Lua bridge inside the binary: upgrade an older managed block
+    // automatically instead of requiring `honrp install` after every release.
+    // A first-time user may launch the daemon before the game (or before the
+    // Documents folder exists), so on Windows fall back to the known path.
+    let mut bridge_dir: Option<PathBuf> = None;
+    #[cfg(windows)]
+    let initial_bridge_dir = sm
+        .user_dir
+        .clone()
+        .or_else(|| detect::pick_user_dir(None, explicit_user_dir.as_deref()))
+        .or_else(|| {
+            dirs::document_dir().map(|d| d.join("Juvio").join("Heroes of Newerth"))
+        });
+    #[cfg(not(windows))]
+    let initial_bridge_dir = sm.user_dir.clone();
+
+    if let Some(ud) = initial_bridge_dir {
+        sm.user_dir = Some(ud.clone());
+        sync_bridge(&ud);
+        bridge_dir = Some(ud);
+    }
+
+    if cfg.check_updates {
+        std::thread::spawn(crate::update::notify_if_newer);
+    }
+
     let poll = Duration::from_secs_f64(cfg.poll_interval.max(0.2));
     let mut ipc: Option<DiscordIpc> = None;
     let mut last_activity: Option<serde_json::Value> = None;
@@ -274,8 +362,24 @@ pub fn run(cfg: &Config, opts: RunOpts) -> Result<()> {
     let mut last_attempt: Option<Instant> = None;
     let mut last_warn: Option<Instant> = None;
 
+    // Discord endpoint probing is throttled (connecting on every poll shows up
+    // in Discord's logs) and debounced so a client restart does not flicker the
+    // label. `None` = not probed yet.
+    let mut discord_found: Option<bool> = None;
+    let mut pending_found: Option<bool> = None;
+    let mut pending_count = 0u32;
+    let mut last_probe: Option<Instant> = None;
+
     while !stop.load(Ordering::Relaxed) {
         sm.poll();
+        // The user dir may only become known once the game is running (Linux
+        // prefixes, a late `juvio.exe`); install/upgrade the bridge at that point.
+        if bridge_dir.is_none() {
+            if let Some(ud) = sm.user_dir.clone() {
+                sync_bridge(&ud);
+                bridge_dir = Some(ud);
+            }
+        }
         let view = sm.view();
         // no game -> no presence, and the IPC connection is dropped below
         let activity = if sm.pid().is_some() {
@@ -284,6 +388,58 @@ pub fn run(cfg: &Config, opts: RunOpts) -> Result<()> {
             None
         };
         let now = Instant::now();
+
+        let should_probe = last_probe
+            .map(|t| now.duration_since(t) >= Duration::from_millis(1500))
+            .unwrap_or(true);
+        if should_probe {
+            last_probe = Some(now);
+            let found = crate::ipc::available(ipc_override.as_deref());
+            match discord_found {
+                None => discord_found = Some(found),
+                Some(current) if current == found => {
+                    pending_found = None;
+                    pending_count = 0;
+                }
+                Some(_) => {
+                    if pending_found == Some(found) {
+                        pending_count += 1;
+                    } else {
+                        pending_found = Some(found);
+                        pending_count = 1;
+                    }
+                    if pending_count >= 2 {
+                        discord_found = Some(found);
+                        pending_found = None;
+                        pending_count = 0;
+                    }
+                }
+            }
+        }
+
+        // published for the Windows control window (no-op elsewhere)
+        crate::status::set(|s| {
+            s.daemon = true;
+            s.discord = ipc.is_some();
+            s.discord_found = discord_found;
+            s.game_pid = sm.pid();
+            s.in_game = view.in_game;
+            s.in_queue = view.in_queue;
+            s.user_dir = sm
+                .user_dir
+                .as_ref()
+                .map(|p| p.display().to_string());
+            match &activity {
+                Some(a) => {
+                    s.details = a.details.clone();
+                    s.state = a.state.clone();
+                }
+                None => {
+                    s.details.clear();
+                    s.state.clear();
+                }
+            }
+        });
 
         if opts.dry_run {
             if let Some(a) = &activity {
@@ -328,7 +484,7 @@ pub fn run(cfg: &Config, opts: RunOpts) -> Result<()> {
                 continue;
             }
             last_attempt = Some(now);
-            match DiscordIpc::connect(&cfg.client_id, opts.ipc_socket.as_deref()) {
+            match DiscordIpc::connect(&cfg.client_id, ipc_override.as_deref()) {
                 Ok(rpc) => {
                     if opts.verbose {
                         eprintln!("discord: connected");
@@ -389,5 +545,6 @@ pub fn run(cfg: &Config, opts: RunOpts) -> Result<()> {
             let _ = rpc.clear(pid);
         }
     }
+    log_line("daemon stopped");
     Ok(())
 }

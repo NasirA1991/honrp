@@ -1,5 +1,141 @@
 # Changelog
 
+## 0.3.3 — 2026-11-07
+
+- Lua bridge build 11: in-game hero level and KDA on Windows. Build 10 only
+  registered the HUD triggers (`MatchClock`, `PlayerScore`, `ActiveLevel`) on
+  `UIManager:GetInterface('game')`, which is not reachable from the
+  `startup.lua` environment, so a whole match emitted `"hudhosts":0`. The
+  triggers are now registered on the `main` interface object as well — that is
+  the registration build 9 used on Linux (the engine's watch registry is keyed
+  by trigger name, not by interface) — plus the active interface and known
+  game interface names.
+- Lua bridge build 10: survive the client's `main.interface` rebuild. On
+  Windows the client restarts Direct3D to apply the saved video mode shortly
+  after launch and re-executes `ui/fe3/main.interface`; that destroys the
+  widget the bridge's timer hung on and reassigns every `Main.*` function, so
+  build 9 emitted four lines and then stayed silent for the rest of the
+  session (main menu was still shown from the process fallback, but Learn,
+  Store, Plinko, lobby, hero, level and KDA were all missing). The bridge now
+  re-arms on `Main:Init`/`Main:OnReload`, on the engine's global `Trigger()`
+  (which is not reassigned by the rebuild) and whenever the `main` interface
+  object changes, re-registering watches and HUD triggers on the new
+  interface.
+- The bridge reads `iface_env` correctly now: build 9 declared it after the
+  closures that used it, so they read a global that was always nil
+  (`"env":0` in every line) and never consulted `Lobby`/`Matchmaking`.
+- Panel detection uses the real panel name `plinko_v2`, captures
+  `FSPanelTrigger` from the trigger call itself and verifies a remembered
+  panel with `Main:IsPanelOpen`, so a stale panel is not reported after a
+  match.
+- `honrp run` now installs the bundled Lua bridge when the file on disk
+  differs from the binary's copy. Updating honrp is enough — no second
+  `honrp install` after a release, and Lua fixes only need one game restart.
+  It also does this before the game has ever run (Windows falls back to
+  `Documents\Juvio\Heroes of Newerth`) and again when the user dir first
+  becomes known, so a daemon started at boot still prepares the bridge.
+- New `honrp update` and `honrp update --check`: reads the latest GitHub
+  release, downloads the platform asset with `curl`, verifies it against the
+  release `checksums.txt` (SHA-256), unpacks it with `tar` and swaps the
+  running binary. `honrp run` checks once a day and prints a notice (disable
+  with `"check_updates": false` in the config).
+- `honrp status` reports the installed bridge build next to the build the
+  binary ships and says when they differ.
+- Windows control window: double-clicking `honrp.exe` (no arguments) opens a
+  small native window instead of a console. It shows daemon/Discord status,
+  the game process and the card being sent, the version and installed bridge
+  build, and has "Check for updates", "Open config" and "Start honrp when
+  Windows starts" controls. The daemon runs inside the window process; a
+  single-instance mutex focuses the existing window instead of starting a
+  second daemon.
+- Windows installer (`honrp-setup-<version>.exe`, Inno Setup): per-user, no
+  admin prompt, installs to `%LOCALAPPDATA%\Programs\honrp`, optional desktop
+  shortcut and autostart, and an Add/Remove Programs entry. Uninstalling also
+  strips the managed Lua-bridge block and removes `%APPDATA%\honrp`.
+- New branding pack: app icon (gold hood/eyes, lavender bridge, chat bubble on
+  a purple-bordered tile), README banner, GitHub social preview and avatar.
+  The Windows `.ico` (16–256 px) is embedded in the exe, window and installer;
+  SVG/PNG sources and `docs/BRANDING.md` live in `assets/`. Original mark, no
+  Heroes of Newerth or Discord logos.
+- The control window is a compact 480x192 panel (grows by 24 px for an action
+  hint, 480x236 while Config or a dialog is open): Rich Presence and Discord
+  state with separate colours, the card line (hero/level/KDA on hover), a
+  neutral **Stop Rich Presence / Start Rich Presence** button with Config and
+  Menu beside it, a neutral **Launch at startup** row, a faint separator above
+  the clickable update-status footer. The in-game card preview was removed:
+  the card lives in Discord, and duplicating it made the panel feel cluttered.
+- The footer link checks for updates and **Install x.y.z** appears when a newer
+  release is known; the separate Check for updates button is gone.
+- **Config** opens a settings screen where the game documents folder can be
+  entered/browsed and an optional Discord IPC socket override set. honrp needs
+  no Discord install path; it connects over Discord's local IPC.
+- **Help** opens the README's `Help / Troubleshooting` section in the browser,
+  with collapsible Windows and Linux lists of the common problems.
+- The window follows the system light/dark theme, with palette-aware status
+  colours and readable text in both.
+- There is no separate **Close** or **Quit** button: X closes the window only
+  (Rich Presence keeps running), and the primary button is the only stop/start
+  control.
+- The window no longer shows the card preview (it is in Discord already; the
+  state is available as a tooltip on the game line).
+- The control window and the daemon are separate processes: closing the
+  window leaves the daemon (and Discord presence) running; the big button
+  stops it after a warning that RPC stays off until it is started again.
+  Opening the window adopts a running daemon or starts one automatically;
+  `honrp stop` stops it from the CLI; the autostart entry starts the daemon
+  only (no window), and the installer stops an old daemon before upgrading.
+- The control window is cross-platform (egui/eframe): the same window runs on
+  Windows and Linux. The daemon still runs headless with `honrp run`; build
+  with `--no-default-features` for a GUI-less binary.
+- First Windows start shows a one-time explanation of the Discord
+  "juvio.exe / Heroes of Newerth" Registered Games conflict; the permanent
+  Help menu links to the troubleshooting notes.
+- The main window shrank to 480x192 with a compact-width Stop/Start button and
+  a faint separator above the footer (it grows to 480x236 only while Config or
+  a dialog is open), removing the dead space between the startup row and the
+  footer.
+- Discord state is derived from the real IPC endpoint instead of the connection
+  alone: **Discord ready** (endpoint exists, no game), **Live on Discord**
+  (publishing), **Can't connect to Discord** (endpoint exists but the
+  connection failed while a game runs), **Discord not running** (no endpoint)
+  and **Discord state unknown** (older daemon did not report it; `Option<bool>`
+  instead of a misleading `false`). Problem states also show an inline action
+  hint, and tooltips explain each.
+- The endpoint probe is throttled (1.5 s) and debounced (two matching probes)
+  so Discord restarts do not flicker the label and Unix does not see a
+  connect/close every poll; stale sockets are rejected by connecting, and
+  Windows busy-pipe errors (`ERROR_SEM_TIMEOUT`/`ERROR_PIPE_BUSY`) count as
+  found. Flatpak/Snap/Canary/Vesktop socket locations were added.
+- The Stop/Start control is content-sized, the status text is slightly larger,
+  the Linux autostart row opens a dialog with copyable `honrp install` /
+  `honrp uninstall` commands, and the footer sits in the normal layout flow so
+  the vertical rhythm is consistent.
+- UI review pass: clearer Discord setup copy ("duplicate activity" instead of
+  "Two cards?", real arrow, reopenable from the menu), truthful status
+  distinctions (Rich Presence on/off, Discord ready/live/not running/unknown,
+  "Waiting for Heroes of Newerth" in normal text), a safer Stop dialog (Cancel
+  first and focused, Enter on the default cannot stop Rich Presence, Escape
+  cancels, destructive button styled separately), a neutral Stop Rich Presence
+  button, the closing hint on the main screen, a condensed footer, bridge build
+  moved to Details, a neutral **Launch at startup** row, tooltips on every
+  status, and a Details dialog (version, bridge, states, game folder, log
+  path).
+- The control window has an **Uninstall...** action with a warning. On an
+  installed copy it stops the daemon and runs the Inno uninstaller (program,
+  shortcuts, autostart, settings, bridge); for the portable zip it removes the
+  autostart entry, settings and the Lua bridge, and tells you to delete the
+  folder.
+- The window renders with wgpu (D3D12/Vulkan) instead of OpenGL: on an
+  AMD/Windows setup the glow renderer created a blank white window while the
+  UI loop kept running. `honrp run` is unaffected (headless).
+- `honrp` with no arguments now opens the control window on Windows; `honrp
+  run` remains the headless daemon for scripts/systemd.
+- The short map label for Forests of Caldavar is `FoC` (it was `FoW`).
+- New Lua regression test `tests/test_lua_reload.lua` (fails on build 9,
+  covers the rebuild and the missing HUD registration); CI runs it.
+- Windows CI uploads the portable zip as a build artifact, so a branch build
+  can be downloaded and tested without cutting a release.
+
 ## 0.3.2 — 2026-11-06
 
 - Windows `install` works before the first game launch: if
