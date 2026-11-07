@@ -131,6 +131,17 @@ assert(#ifaceB.sleeps >= 1, 'new interface has no timer')
 assert(ifaceB.watch['MatchClock'], 'MatchClock not registered on main interface')
 assert(ifaceB.watch['PlayerScore'], 'PlayerScore not registered on main interface')
 assert(ifaceB.watch['ActiveLevel'], 'ActiveLevel not registered on main interface')
+
+-- build 13: a fresh match has no PlayerScore event yet; level 1 must seed a
+-- complete 0/0/0 so the card is not just "Hero • Lv 1".
+now = now + 1000
+ifaceB.watch['ActiveLevel'](nil, '1')
+local seeded = out[#out]
+assert(seeded:find('"level":1'), 'seed level missing: ' .. tostring(seeded))
+assert(seeded:find('"kills":0'), 'seed kills missing: ' .. tostring(seeded))
+assert(seeded:find('"deaths":0'), 'seed deaths missing: ' .. tostring(seeded))
+assert(seeded:find('"assists":0'), 'seed assists missing: ' .. tostring(seeded))
+
 now = now + 10000
 ifaceB.watch['ActiveLevel'](nil, '14')
 now = now + 1000

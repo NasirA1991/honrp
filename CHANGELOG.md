@@ -2,6 +2,11 @@
 
 ## 0.3.3 — 2026-11-07
 
+- Lua bridge build 13: seed `0/0/0` while the hero is level 1. On a fresh
+  match `PlayerScore` does not fire until the first kill/death/assist, so even
+  build 12 had no KDA to preserve and the card read only `Slither • Lv 1`.
+- The app now shows the hero/level/KDA line visibly under the map/mode while
+  in game (it was previously only in the hover tooltip).
 - Lua bridge build 12: keep hero level and KDA across an in-game interface
   re-arm. Build 11 cleared the HUD values in `start()`; PlayerScore does not
   fire again until the next score change, so a fresh `0/0/0` vanished and only

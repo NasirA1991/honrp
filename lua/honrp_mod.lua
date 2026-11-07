@@ -40,13 +40,18 @@
 --  ActiveLevel) came back.  The immediate emit after start() still clears
 --  the values when the game is not running, so no stale stats leak between
 --  matches.
+--
+--  build 13: seed a complete 0/0/0 while the hero is still level 1.  On a
+--  fresh match PlayerScore does not fire until the first kill/death/assist,
+--  so even build 12 had no KDA to preserve and the card read only
+--  "Slither • Lv 1".
 ----------------------------------------------------------
 
 -- >>> HONRP BEGIN >>> (managed block, do not edit by hand)
 local okMod, modErr = pcall(function()
     local G = _G
     local MARKER = '[HONRP]'
-    local BUILD = 12
+    local BUILD = 13
     local unpack = G.unpack or (G.table and G.table.unpack)
 
     ----------------------------------------------------------
@@ -387,6 +392,11 @@ local okMod, modErr = pcall(function()
         if type(vh) == 'string' and vh ~= '' then add('view_hero', vh) end
 
         if inGame then
+            -- PlayerScore does not fire until the first score change; seed a
+            -- complete 0/0/0 while the hero is still level 1 (fresh match).
+            if hud.level == 1 and not (hud.kills and hud.deaths and hud.assists) then
+                hud.kills, hud.deaths, hud.assists = 0, 0, 0
+            end
             if hud.clock ~= nil then
                 parts[#parts + 1] = '"clock":' .. math.floor(hud.clock)
             end

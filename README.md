@@ -333,7 +333,7 @@ The old single process became two:
 - The daemon publishes the cached value in `status::Snapshot`; the GUI only
   derives labels from it.
 
-### 4. Lua bridge build 12 (`lua/honrp_mod.lua`)
+### 4. Lua bridge build 13 (`lua/honrp_mod.lua`)
 
 - Injected through `startup.lua`; emits `[HONRP] {...}` JSON lines to the
   UTF-16LE `console.log`.
@@ -352,6 +352,11 @@ The old single process became two:
   `0/0/0` disappeared and only the level (re-fired by `ActiveLevel`) came
   back. A re-arm outside a game still clears them (no stale stats between
   matches).
+- **Build 13** seeds `0/0/0` while the hero is still level 1. On a fresh match
+  `PlayerScore` does not fire until the first kill/death/assist, so even
+  build 12 had no KDA to preserve and Discord showed only `Slither • Lv 1`.
+  The app now also shows that hero/level/KDA line visibly under the map/mode
+  instead of only in the hover tooltip.
 - Panels: includes the real `plinko_v2` name, captures `FSPanelTrigger`, and
   verifies remembered panels with `Main:IsPanelOpen` so a stale panel is not
   reported after a match.
@@ -418,7 +423,7 @@ The old single process became two:
 | `src/ipc.rs` | endpoint probing + variants; config socket support |
 | `src/activity.rs` | `FoC` short map (was `FoW`), activity text |
 | `src/config.rs` | `user_dir`, `ipc_socket`, `check_updates` |
-| `lua/honrp_mod.lua` | bridge build 10/11/12 |
+| `lua/honrp_mod.lua` | bridge build 10/11/12/13 |
 | `tests/test_lua_reload.lua` | regression for interface reload/HUD |
 | `tests/run_all.sh` | runs both Lua harnesses (mode kept executable) |
 | `build.rs` | Windows icon resource |

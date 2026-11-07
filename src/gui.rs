@@ -474,6 +474,11 @@ impl eframe::App for HonrpApp {
                 None
             };
 
+        let has_state = status
+            .as_ref()
+            .map(|s| s.in_game && !s.state.is_empty())
+            .unwrap_or(false);
+
         let overlay_open = self.config_open
             || self.notice_open
             || self.confirm_stop
@@ -489,6 +494,7 @@ impl eframe::App for HonrpApp {
                 } else {
                     0.0
                 }
+                + if has_state { EXTRA_ROW } else { 0.0 }
         };
         if (self.window_h - desired_h).abs() > 0.5 {
             self.window_h = desired_h;
@@ -604,6 +610,12 @@ impl eframe::App for HonrpApp {
             );
             if !tooltip.is_empty() {
                 resp.on_hover_text(tooltip);
+            }
+            if let Some(s) = &status {
+                if s.in_game && !s.state.is_empty() {
+                    ui.add_space(2.0);
+                    ui.label(egui::RichText::new(&s.state).size(13.0).color(p.muted));
+                }
             }
 
             ui.add_space(8.0);
