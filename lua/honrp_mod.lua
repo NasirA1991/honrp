@@ -32,13 +32,21 @@
 --  interface.  `UIManager:GetInterface('game')` is not reachable
 --  from the startup.lua environment, so build 10 never registered
 --  them and level/KDA stayed empty in a match.
+--
+--  build 12: keep the HUD values across an interface rebuild.  Build 11
+--  cleared them in start(); when the client re-armed the bridge on entering
+--  a match, PlayerScore did not fire again until the first score change, so
+--  a fresh 0/0/0 card disappeared and only the level (re-fired by
+--  ActiveLevel) came back.  The immediate emit after start() still clears
+--  the values when the game is not running, so no stale stats leak between
+--  matches.
 ----------------------------------------------------------
 
 -- >>> HONRP BEGIN >>> (managed block, do not edit by hand)
 local okMod, modErr = pcall(function()
     local G = _G
     local MARKER = '[HONRP]'
-    local BUILD = 11
+    local BUILD = 12
     local unpack = G.unpack or (G.table and G.table.unpack)
 
     ----------------------------------------------------------
@@ -569,7 +577,9 @@ local okMod, modErr = pcall(function()
         local keepQueue = watch.in_queue
         watch = { in_queue = keepQueue, found = nil, amt = nil, world = nil,
                   mode = nil, name = nil, match_id = nil, panel = keepPanel }
-        hud_reset()
+        -- Keep hud.* here: PlayerScore may not fire again after a re-arm until
+        -- the next kill/death/assist, which made the KDA disappear mid-match.
+        -- guarded_emit() below resets it when the game is not running.
 
         pcall(function() w:SetCallback('onframe', onframe) end)
         pcall(function() w:Sleep(1000, sleeper) end)

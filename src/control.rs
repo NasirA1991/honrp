@@ -78,8 +78,30 @@ pub fn stop() -> bool {
 
 /// Blocking accept loop; run it on its own thread inside the daemon.
 pub fn serve(stop: Arc<AtomicBool>) {
-    let Ok(listener) = TcpListener::bind(("127.0.0.1", PORT)) else {
-        return;
+    // A just-stopped daemon can leave the port in TIME_WAIT; a single failed
+    // bind used to make Start Rich Presence silently fail. Retry for up to two
+    // minutes instead of exiting immediately.
+    let listener = {
+        let mut attempts = 0u32;
+        loop {
+            match TcpListener::bind(("127.0.0.1", PORT)) {
+                Ok(listener) => break listener,
+                Err(e) => {
+                    if stop.load(Ordering::Relaxed) {
+                        return;
+                    }
+                    attempts += 1;
+                    if attempts == 1 {
+                        eprintln!("control: bind failed ({e}); retrying for up to 2 min");
+                    }
+                    if attempts >= 240 {
+                        eprintln!("control: giving up on port {PORT}: {e}");
+                        return;
+                    }
+                    std::thread::sleep(Duration::from_millis(500));
+                }
+            }
+        }
     };
     for stream in listener.incoming().flatten() {
         let mut stream = stream;
@@ -136,6 +158,11 @@ pub fn spawn_daemon() {
     };
     let mut cmd = std::process::Command::new(exe);
     cmd.arg("run");
+    // The GUI calls FreeConsole() on Windows, so its inherited std handles can
+    // be invalid; give the daemon null stdio (it logs to daemon.log itself).
+    cmd.stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -157,8 +184,10 @@ pub fn ensure_daemon() -> bool {
         return true;
     }
     spawn_daemon();
-    for _ in 0..30 {
-        std::thread::sleep(Duration::from_millis(150));
+    // The daemon retries a TIME_WAIT port for up to 2 min; give it a longer
+    // window than the old 4.5 s so Start Rich Presence does not look failed.
+    for _ in 0..60 {
+        std::thread::sleep(Duration::from_millis(250));
         if running() {
             return true;
         }

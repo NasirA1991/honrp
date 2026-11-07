@@ -2,6 +2,11 @@
 
 ## 0.3.3 — 2026-11-07
 
+- Lua bridge build 12: keep hero level and KDA across an in-game interface
+  re-arm. Build 11 cleared the HUD values in `start()`; PlayerScore does not
+  fire again until the next score change, so a fresh `0/0/0` vanished and only
+  the level returned. The immediate emit after `start()` still clears the
+  values outside a game, so no stale stats leak between matches.
 - Lua bridge build 11: in-game hero level and KDA on Windows. Build 10 only
   registered the HUD triggers (`MatchClock`, `PlayerScore`, `ActiveLevel`) on
   `UIManager:GetInterface('game')`, which is not reachable from the

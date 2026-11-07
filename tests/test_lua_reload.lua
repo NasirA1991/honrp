@@ -153,4 +153,30 @@ now = now + 10000
 ifaceA.sleeps[#ifaceA.sleeps](ifaceA)
 assert(#out == before, 'stale timer from interface A still emitted')
 
+-- build 12: another in-game re-arm (entering a match) must not wipe the
+-- level/KDA. PlayerScore does not fire again until the next score change.
+local ifaceC = new_interface('C', state('PlayerB', '1', 'Hero_Chronos'))
+local gameC = {}
+function gameC:RegisterWatch() end
+UIManager.GetInterface = function(self, n)
+  if n == 'main' then return current.iface end
+  if n == 'game' then return gameC end
+end
+now = now + 1000
+Trigger('FSPanelTrigger', 'learn')
+local kept = out[#out]
+assert(kept:find('"arm":3'), 'third arm missing: ' .. tostring(kept))
+assert(kept:find('"level":14'), 'level lost on in-game re-arm: ' .. tostring(kept))
+assert(kept:find('"kills":6'), 'kills lost on in-game re-arm: ' .. tostring(kept))
+assert(kept:find('"deaths":2'), 'deaths lost on in-game re-arm: ' .. tostring(kept))
+assert(kept:find('"assists":9'), 'assists lost on in-game re-arm: ' .. tostring(kept))
+
+-- ... but a re-arm outside a game must clear them (no stale stats leak).
+new_interface('D', state('PlayerB', '0'))
+now = now + 1000
+Trigger('FSPanelTrigger', '')
+local menu = out[#out]
+assert(not menu:find('"kills":'), 'KDA leaked into the menu: ' .. tostring(menu))
+assert(not menu:find('"level":'), 'level leaked into the menu: ' .. tostring(menu))
+
 print('LUA RELOAD HARNESS OK, lines=' .. #out)

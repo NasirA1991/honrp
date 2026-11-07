@@ -333,7 +333,7 @@ The old single process became two:
 - The daemon publishes the cached value in `status::Snapshot`; the GUI only
   derives labels from it.
 
-### 4. Lua bridge build 11 (`lua/honrp_mod.lua`)
+### 4. Lua bridge build 12 (`lua/honrp_mod.lua`)
 
 - Injected through `startup.lua`; emits `[HONRP] {...}` JSON lines to the
   UTF-16LE `console.log`.
@@ -346,6 +346,12 @@ The old single process became two:
   interfaces. Build 10 only registered them on
   `UIManager:GetInterface('game')`, which is unreachable from `startup.lua`,
   so a match emitted `"hudhosts":0` and no hero level/KDA.
+- **Build 12** keeps the HUD values across an in-game re-arm. Build 11 cleared
+  them in `start()`; when the client re-armed on entering a match,
+  `PlayerScore` did not fire again until the first score change, so a fresh
+  `0/0/0` disappeared and only the level (re-fired by `ActiveLevel`) came
+  back. A re-arm outside a game still clears them (no stale stats between
+  matches).
 - Panels: includes the real `plinko_v2` name, captures `FSPanelTrigger`, and
   verifies remembered panels with `Main:IsPanelOpen` so a stale panel is not
   reported after a match.
@@ -412,7 +418,7 @@ The old single process became two:
 | `src/ipc.rs` | endpoint probing + variants; config socket support |
 | `src/activity.rs` | `FoC` short map (was `FoW`), activity text |
 | `src/config.rs` | `user_dir`, `ipc_socket`, `check_updates` |
-| `lua/honrp_mod.lua` | bridge build 10/11 |
+| `lua/honrp_mod.lua` | bridge build 10/11/12 |
 | `tests/test_lua_reload.lua` | regression for interface reload/HUD |
 | `tests/run_all.sh` | runs both Lua harnesses (mode kept executable) |
 | `build.rs` | Windows icon resource |
