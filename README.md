@@ -453,7 +453,9 @@ The old single process became two:
 - `cargo test` — **15 tests**: activity, config/update versions, bridge sync,
   Discord-state table, etc.
 - Lua harnesses: `tests/test_lua_mod.lua`, `tests/test_lua_reload.lua`.
-- CI run for this branch: ✓ Lua, ✓ Linux rust build, ✓ Windows build.
+- CI run for this branch: ✓ Lua, ✓ Linux rust build, ✓ Windows build
+  (the Windows job also produces the Inno Setup installer artifact on every
+  push).
 - Manual: dark/light screenshots, all simulated Discord states, stop/start
   confirmation, details/settings dialogs, installer icon, no leftover conhost,
   start/stop message transition.

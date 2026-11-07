@@ -365,7 +365,8 @@ From the branding pack:
 - `.github/workflows/ci.yml`:
   - `lua` job runs both Lua harnesses.
   - `rust` job (Ubuntu) installs GUI deps, `cargo test` + release build.
-  - `windows` job builds release + zip artifact.
+  - `windows` job builds release + zip **and the Inno Setup installer** on
+    every push (artifact `honrp-windows-x86_64-ci` contains both).
 - `.github/workflows/release.yml` on `v*` tags builds:
   - Linux static binary + tarball,
   - `.deb`/`.rpm` via nfpm, Arch package in an Arch container,

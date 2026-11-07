@@ -51,8 +51,17 @@ jobs:
         run: |
           Compress-Archive -Path target/release/honrp.exe,README-WINDOWS.txt,LICENSE,config.example.json -DestinationPath "honrp-windows-x86_64-ci.zip"
 
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $version = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"(.+)"').Matches.Groups[1].Value
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" "packaging\honrp.iss"
+
       - uses: actions/upload-artifact@v4
         with:
           name: honrp-windows-x86_64-ci
-          path: honrp-windows-x86_64-ci.zip
+          path: |
+            honrp-windows-x86_64-ci.zip
+            dist/honrp-setup-*.exe
           if-no-files-found: error
