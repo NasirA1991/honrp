@@ -230,6 +230,7 @@ pub fn run() -> anyhow::Result<()> {
             .with_max_inner_size([WINDOW_W, OVERLAY_H])
             .with_resizable(false)
             .with_title("honrp")
+            .with_app_id("honrp")
             .with_icon(window_icon()),
         renderer: eframe::Renderer::Wgpu,
         ..Default::default()

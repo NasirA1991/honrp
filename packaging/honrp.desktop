@@ -7,5 +7,6 @@ Exec=honrp
 Icon=honrp
 Terminal=false
 Categories=Utility;
+Keywords=Heroes of Newerth;HoN;Discord;Rich Presence;
 StartupNotify=false
 StartupWMClass=honrp

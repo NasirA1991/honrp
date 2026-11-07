@@ -371,6 +371,76 @@ fn set_client_id(id: &str) -> Result<()> {
     Ok(())
 }
 
+#[cfg(unix)]
+const DESKTOP_ICONS: &[(u32, &[u8])] = &[
+    (16, include_bytes!("../assets/icons/hicolor/16x16/apps/honrp.png")),
+    (24, include_bytes!("../assets/icons/hicolor/24x24/apps/honrp.png")),
+    (32, include_bytes!("../assets/icons/hicolor/32x32/apps/honrp.png")),
+    (48, include_bytes!("../assets/icons/hicolor/48x48/apps/honrp.png")),
+    (64, include_bytes!("../assets/icons/hicolor/64x64/apps/honrp.png")),
+    (128, include_bytes!("../assets/icons/hicolor/128x128/apps/honrp.png")),
+    (256, include_bytes!("../assets/icons/hicolor/256x256/apps/honrp.png")),
+    (512, include_bytes!("../assets/icons/hicolor/512x512/apps/honrp.png")),
+];
+
+/// Install the app-menu entry and hicolor icons for this user. This is what
+/// makes Wayland compositors show the real icon: they match the window's
+/// app_id ("honrp") to honrp.desktop, and the Icon= key to hicolor/honrp.png.
+#[cfg(unix)]
+fn install_desktop_entry() -> Result<()> {
+    let data = dirs::data_dir().context("no XDG data directory")?;
+    let apps = data.join("applications");
+    fs::create_dir_all(&apps)?;
+    let exe = std::env::current_exe().context("finding the honrp executable")?;
+    let exe_text = exe.to_string_lossy();
+    let exec = if exe_text.contains(' ') {
+        format!("\"{exe_text}\"")
+    } else {
+        exe_text.to_string()
+    };
+    let desktop = format!(
+        "[Desktop Entry]\n\
+         Type=Application\n\
+         Name=honrp\n\
+         GenericName=Discord Rich Presence\n\
+         Comment=Discord Rich Presence for Heroes of Newerth\n\
+         Exec={exec}\n\
+         Icon=honrp\n\
+         Terminal=false\n\
+         Categories=Utility;\n\
+         Keywords=Heroes of Newerth;HoN;Discord;Rich Presence;\n\
+         StartupNotify=false\n\
+         StartupWMClass=honrp\n"
+    );
+    fs::write(apps.join("honrp.desktop"), desktop)?;
+    for (size, bytes) in DESKTOP_ICONS {
+        let dir = data
+            .join("icons")
+            .join("hicolor")
+            .join(format!("{size}x{size}"))
+            .join("apps");
+        fs::create_dir_all(&dir)?;
+        fs::write(dir.join("honrp.png"), bytes)?;
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn remove_desktop_entry() {
+    if let Some(data) = dirs::data_dir() {
+        let _ = fs::remove_file(data.join("applications").join("honrp.desktop"));
+        for (size, _) in DESKTOP_ICONS {
+            let _ = fs::remove_file(
+                data.join("icons")
+                    .join("hicolor")
+                    .join(format!("{size}x{size}"))
+                    .join("apps")
+                    .join("honrp.png"),
+            );
+        }
+    }
+}
+
 fn install(
     user_dir: Option<PathBuf>,
     prefix: Option<PathBuf>,
@@ -393,6 +463,11 @@ fn install(
     }
     let target = mod_install(&ud)?;
     println!("installed Lua bridge -> {}", target.display());
+    #[cfg(unix)]
+    match install_desktop_entry() {
+        Ok(()) => println!("installed the desktop entry and icons"),
+        Err(e) => eprintln!("warning: could not install the desktop entry: {e}"),
+    }
     println!();
     println!("What this does:");
     println!("  - adds a managed block to the game's startup.lua (backup kept)");
@@ -434,7 +509,10 @@ fn uninstall(user_dir: Option<PathBuf>, purge: bool) -> Result<()> {
     // a running daemon holds the exe open on Windows
     let _ = control::stop();
     #[cfg(unix)]
-    let _ = service_uninstall();
+    {
+        let _ = service_uninstall();
+        remove_desktop_entry();
+    }
     if let Some(ud) = resolve_user_dir(user_dir, None) {
         mod_uninstall(&ud)?;
         println!("removed the Lua bridge from {}", ud.display());

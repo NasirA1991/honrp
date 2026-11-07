@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.6 — 2026-11-07
+
+- Branding pass: new install-first README with the banner, icon and state art;
+  the long implementation notes now live in the branch/porting docs.
+- Wayland app id is set to `honrp`, and `honrp install` now installs the
+  user-level desktop entry plus 16–512 px hicolor icons, so the compositor no
+  longer falls back to a generic window icon.
+- Windows installer default version and docs were brought up to date; the
+  executable, setup, shortcuts and uninstaller all use the branded icon.
+
 ## 0.3.5 — 2026-11-07
 
 - Fix the Linux window still being vertically resizable: pin min/max inner
