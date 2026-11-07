@@ -357,6 +357,12 @@ The old single process became two:
   build 12 had no KDA to preserve and Discord showed only `Slither • Lv 1`.
   The app now also shows that hero/level/KDA line visibly under the map/mode
   instead of only in the hover tooltip.
+- Practice games ("Learn" → play a hero) load `fieldtest` while the lobby
+  metadata still says `caldavarphoenix`; the daemon now prefers the console
+  log's `Client loading world "fieldtest"` during a match, so the card reads
+  **Field Test**, not FoC.
+- Windows process detection uses the ToolHelp API instead of `tasklist`; the
+  old subprocess flashed a console window on every poll.
 - Panels: includes the real `plinko_v2` name, captures `FSPanelTrigger`, and
   verifies remembered panels with `Main:IsPanelOpen` so a stale panel is not
   reported after a match.

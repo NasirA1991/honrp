@@ -2,6 +2,15 @@
 
 ## 0.3.3 — 2026-11-07
 
+- Practice games now report **Field Test**, not `FoC • All Pick`: the lobby
+  metadata still says `caldavarphoenix`, but the console log's
+  `Client loading world "fieldtest"` is authoritative during a match.
+- Windows game detection no longer shells out to `tasklist` (which flashed a
+  console window every poll, and `CREATE_NO_WINDOW` did not reliably suppress
+  it). It enumerates processes with the ToolHelp API instead.
+- Starting Rich Presence after stopping it is reliable: the daemon is spawned
+  with null stdio (FreeConsole invalidated the GUI's inherited handles) and the
+  control port retries a TIME_WAIT bind for up to two minutes.
 - Lua bridge build 13: seed `0/0/0` while the hero is level 1. On a fresh
   match `PlayerScore` does not fire until the first kill/death/assist, so even
   build 12 had no KDA to preserve and the card read only `Slither • Lv 1`.

@@ -63,8 +63,19 @@ pub fn is_newer(latest: &str, current: &str) -> bool {
     }
 }
 
+fn command(program: &str) -> Command {
+    let mut cmd = Command::new(program);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // Background update checks must not flash a console window.
+        cmd.creation_flags(0x0800_0000);
+    }
+    cmd
+}
+
 fn curl(args: &[&str]) -> Result<std::process::Output> {
-    Command::new("curl")
+    command("curl")
         .args(args)
         .output()
         .context("running curl (install curl or update honrp manually)")
@@ -191,7 +202,7 @@ fn verify_checksum(release: &Release, asset: &Asset, archive: &Path) -> Result<(
 
 fn extract(archive: &Path, dir: &Path) -> Result<()> {
     // Windows 10+ ships bsdtar, which reads .zip; GNU tar reads .tar.gz.
-    let status = Command::new("tar")
+    let status = command("tar")
         .arg("-xf")
         .arg(archive)
         .arg("-C")

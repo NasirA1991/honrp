@@ -238,6 +238,12 @@ impl StateMachine {
                 mode = &m.lobby_mode;
             }
         }
+        // Practice games ("Learn" -> play a hero) keep the lobby's Caldavar
+        // world but actually load `fieldtest`; the console log is authoritative
+        // there while the lobby metadata is not.
+        if in_match && self.fallback_map.eq_ignore_ascii_case("fieldtest") {
+            map = self.fallback_map.as_str();
+        }
         if !in_match && map.is_empty() {
             map = self.fallback_map.as_str();
         }
