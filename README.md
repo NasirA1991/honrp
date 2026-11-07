@@ -236,6 +236,235 @@ Reads `console.log`, `logs/game_*.log` and `/proc`; writes the managed
 socket. No telemetry, no game memory, no game files changed. Details:
 [PRIVACY.md](PRIVACY.md).
 
+## Implementation notes — everything changed in this branch
+
+This branch (`feat/compact-ui-branding`) is based on commit `f79baac`
+("AUR: version the cached source filename"). Everything below was added or
+changed after that point. It is deliberately detailed so a Linux session can
+review the work and port/verify the UI without re-deriving it.
+
+**Status:** Windows build tested by hand (screenshots, installer, daemon, Lua
+bridge, Discord states); Linux compiles in CI (`rust` job) but the Linux GUI
+has **not been run** yet. See `docs/PORTING-LINUX.md` for the port checklist.
+
+### 1. Architecture: GUI + daemon, on purpose
+
+The old single process became two:
+
+- `honrp` with no arguments opens the **control window** (egui/eframe).
+- `honrp run` is the **daemon**: game detection, Discord IPC, Lua bridge sync,
+  control server, logging. It runs without a window.
+- The window is a front-end. It polls the daemon over loopback; it does not own
+  Discord or the bridge.
+- Closing the window (X) only closes the window. The daemon keeps running and
+  Rich Presence keeps working.
+- **Stop Rich Presence** stops the daemon after a confirmation; **Start Rich
+  Presence** spawns it again. There is no separate Quit/Close button.
+- Single instance: the GUI binds `127.0.0.1:47831`; a second launch exits.
+- Control protocol: `127.0.0.1:47832`, one line per command (`ping`, `status`,
+  `stop`); `status` returns one line of JSON (`DaemonStatus`).
+- Spawn: `CREATE_NO_WINDOW` on Windows, `process_group(0)` on Unix. The GUI and
+  daemon call `FreeConsole()` after hiding an owned console, so no hidden
+  terminal is left behind (Windows bug fixed late in the branch).
+- Autostart: HKCU `Run` value `"<exe>" run` on Windows; systemd user service on
+  Linux (`honrp install`).
+
+### 2. Control window (`src/gui.rs`)
+
+- **eframe/egui 0.37 with the wgpu renderer.** glow produced a blank white
+  window on the Windows AMD test machine while the UI loop ran at ~2.5 fps;
+  wgpu (D3D12/Vulkan) fixed rendering. Linux uses wgpu too.
+- **Size:** 480×192 base; +24 px for an action hint; 480×236 while Config or a
+  dialog is open. The window resizes itself with `ViewportCommand::InnerSize`.
+- **Status line:** Rich Presence on/off and a Discord state, each with its own
+  dot/colour:
+  - `Rich Presence on` (green) / `Rich Presence off` (grey)
+  - `Discord ready` (soft green; endpoint exists, no game)
+  - `Live on Discord` (green; a card is being published)
+  - `Can't connect to Discord` (amber; game running, IPC failed)
+  - `Discord not running` (grey; no endpoint)
+  - `Discord state unknown` (grey; an older daemon did not report it)
+  Problem states show an inline hint (`Start Discord to show your game
+  status.` / `Discord is running, but honrp can't connect. Restart Discord.`).
+  Every label has a tooltip.
+- **Game line:** `Waiting for Heroes of Newerth`, the current card details, or
+  `In match` / `Searching for a match`; hover shows hero/level/KDA.
+- **Primary action:** neutral, content-sized **Stop Rich Presence** / green
+  **Start Rich Presence**. Confirmation dialog: Cancel first and focused, Escape
+  cancels, Enter on the default cannot stop it, destructive button styled
+  separately.
+- **Secondary controls:** Config and Menu sit on the right of the action row;
+  `Launch at startup` (toggle on Windows; a command dialog on Linux) sits
+  below; a faint separator separates the footer.
+- **Footer:** `honrp 0.3.3 · Up to date` is a link; it checks GitHub. When an
+  update exists, an **Install x.y.z** button appears. Messages (stopped,
+  saved, failed) reuse this line, and clear when Rich Presence starts again
+  (stale-message bug fixed).
+- **Config screen:** game documents folder (text field + Browse + Open) and an
+  optional Discord IPC socket/pipe override. Empty means auto-detect. Save
+  restarts the daemon if it is running.
+- **Menu:** Help / Troubleshooting (opens `#help--troubleshooting`), Discord
+  setup… (the one-time Registered Games note, reopenable), Details… (version,
+  bridge build, daemon/Discord/game state, game folder, log path), Uninstall….
+- **Theme:** follows the system (`ThemePreference::System`), with
+  theme-aware ok/warn/danger/muted colours. Light mode was checked for text
+  contrast. `HONRP_THEME=light|dark` forces one for screenshots.
+- **Linux-specific branch:** no Windows registry toggle; **Launch at
+  startup...** opens a dialog with copyable `honrp install` / `honrp uninstall`.
+
+### 3. Discord state (`src/discord_state.rs`, `src/ipc.rs`, `src/status.rs`, `src/control.rs`)
+
+- `discord_state::derive()` is a pure function of
+  `(daemon, connected, discord_found: Option<bool>, game_running)`; it is
+  table-tested.
+- `discord_found` is `Option<bool>`, so a missing field from an older daemon
+  means “unknown”, not a false “not detected”. `DaemonStatus` is
+  `#[serde(default)]` for compatibility.
+- `ipc::available()` probes the endpoint without handshaking:
+  - Windows: `WaitNamedPipeW(..., 0)` over `discord-ipc-0..9`; busy/timeout
+    (`ERROR_SEM_TIMEOUT`, `ERROR_PIPE_BUSY`) counts as found.
+  - Unix: candidate socket exists **and** `UnixStream::connect()` succeeds, so
+    stale socket files after a crash are not reported as ready.
+  - Flatpak (Stable/PTB/Canary), Snap (Stable/Canary), Vesktop and native
+    Canary paths are scanned.
+- The probe is throttled to every **1.5 s** and debounced (two matching probes)
+  so Discord restarts do not flicker the label and Unix does not see a
+  connect/close on every poll.
+- The daemon publishes the cached value in `status::Snapshot`; the GUI only
+  derives labels from it.
+
+### 4. Lua bridge build 11 (`lua/honrp_mod.lua`)
+
+- Injected through `startup.lua`; emits `[HONRP] {...}` JSON lines to the
+  UTF-16LE `console.log`.
+- **Build 10** survives the Windows `main.interface` rebuild (the client
+  restarts Direct3D and re-executes the interface, killing timers/watches and
+  reassigning `Main.*`): re-arms on `Main:Init`/`Main:OnReload`, the engine
+  global `Trigger()` and interface changes.
+- **Build 11** registers HUD triggers (`MatchClock`, `PlayerScore`,
+  `ActiveLevel`) on the main interface object as well as the active/game
+  interfaces. Build 10 only registered them on
+  `UIManager:GetInterface('game')`, which is unreachable from `startup.lua`,
+  so a match emitted `"hudhosts":0` and no hero level/KDA.
+- Panels: includes the real `plinko_v2` name, captures `FSPanelTrigger`, and
+  verifies remembered panels with `Main:IsPanelOpen` so a stale panel is not
+  reported after a match.
+- Diagnostics include `env`, `uim`, `arm`, `gi`, `act`, `hudhosts`.
+- Tests: `tests/test_lua_mod.lua` and `tests/test_lua_reload.lua` (run under
+  Lua 5.1 via `tools/run_lua51.py`).
+
+### 5. Windows packaging, updates, bridge sync
+
+- **Installer** (`packaging/honrp.iss`, Inno Setup 6.2.2): per-user, lowest
+  privileges, `{autopf}\honrp`, Start Menu/desktop shortcuts with an explicit
+  exe icon source, optional autostart task, uninstall entry, `[UninstallRun]`
+  stops the daemon and strips the managed Lua block, `[UninstallDelete]`
+  removes `%APPDATA%\honrp`. Existing daemons are stopped in
+  `PrepareToInstall`.
+- **Installer/icon**: `assets/icon.ico` is embedded by `build.rs` +
+  `winresource` (Windows-only build dependency); the installer uses
+  `SetupIconFile` and `UninstallDisplayIcon`.
+- **Updater** (`src/update.rs`): GitHub latest-release API, platform asset,
+  SHA-256 verification against `checksums.txt`, tar extraction, self-replace
+  (rename running exe to `.exe.old` + copy on Windows), `honrp update
+  [--check]`, daily startup notice (`check_updates`).
+- **Bridge sync** (`sync_bridge`): rewrites the managed block when the on-disk
+  `startup.lua` lacks the embedded build; runs before game launch (Windows
+  Documents fallback) and when the user dir first resolves.
+- **Uninstall**: in-app Uninstall… with warning; installed copies run the Inno
+  uninstaller after a delay, portable copies remove autostart/settings/bridge
+  and tell the user to delete the folder.
+- **Bug fixes in the last commit:** explicit shortcut `IconFilename`, clean
+  icon resource in the exe, `FreeConsole()` after hiding (no hidden terminal),
+  stop notice cleared on restart.
+
+### 6. Branding and build
+
+- Icon/branding pack: gold hood + eyes, lavender three-arch bridge, chat bubble,
+  purple-bordered tile. Original mark; no HoN/Discord logos.
+- `assets/icon.svg` (source), `assets/icon.png` (1024), `icon-256.png`,
+  `icon.ico` (16–256), `icon-64.rgba` (window icon, no PNG decoder needed),
+  `assets/branding/` (README banner, social preview, avatar),
+  `assets/icons/hicolor/` (Linux icon hierarchy), `docs/BRANDING.md`.
+- `build.rs` embeds the `.ico` via `winresource`, gated to Windows targets.
+- `README.md` uses `assets/branding/readme-banner-1600x450.png`.
+
+### 7. Configuration additions
+
+`config.example.json` / `src/config.rs`:
+
+- `user_dir` — manual game documents folder (Config → Game folder).
+- `ipc_socket` — manual Discord IPC socket/pipe (Config → Discord); the daemon
+  now honors it (`run.rs`), not just `honrp doctor`.
+- `check_updates` — daily update notice.
+
+### 8. Files added or changed since `f79baac`
+
+| file | why |
+|---|---|
+| `src/gui.rs` | control window, settings, dialogs, themes, state rendering |
+| `src/control.rs` | daemon status/spawn/stop + loopback control server |
+| `src/status.rs` | snapshot shared between daemon and window |
+| `src/discord_state.rs` | pure Discord-state derivation + table tests |
+| `src/update.rs` | GitHub update check/download/verify/self-replace |
+| `src/main.rs` | subcommands, uninstall, bridge sync, autostart, console |
+| `src/run.rs` | daemon loop, status publishing, `ipc_socket`, bridge sync |
+| `src/ipc.rs` | endpoint probing + variants; config socket support |
+| `src/activity.rs` | `FoC` short map (was `FoW`), activity text |
+| `src/config.rs` | `user_dir`, `ipc_socket`, `check_updates` |
+| `lua/honrp_mod.lua` | bridge build 10/11 |
+| `tests/test_lua_reload.lua` | regression for interface reload/HUD |
+| `tests/run_all.sh` | runs both Lua harnesses (mode kept executable) |
+| `build.rs` | Windows icon resource |
+| `packaging/honrp.iss` | Windows installer |
+| `packaging/honrp.desktop` | Linux desktop entry (for the port) |
+| `assets/icon.*`, `assets/icons/hicolor/`, `assets/branding/` | branding |
+| `docs/BRANDING.md`, `docs/PORTING-LINUX.md` | brand guide, port checklist |
+| `.github/workflows/ci.yml`, `release.yml` | Linux/Windows builds, tests |
+| `README.md`, `README-WINDOWS.txt`, `CHANGELOG.md` | documentation |
+
+### 9. Verification
+
+- `cargo test` — **15 tests**: activity, config/update versions, bridge sync,
+  Discord-state table, etc.
+- Lua harnesses: `tests/test_lua_mod.lua`, `tests/test_lua_reload.lua`.
+- CI run for this branch: ✓ Lua, ✓ Linux rust build, ✓ Windows build.
+- Manual: dark/light screenshots, all simulated Discord states, stop/start
+  confirmation, details/settings dialogs, installer icon, no leftover conhost,
+  start/stop message transition.
+- **Unverified:** Linux GUI runtime (window, resize, wgpu, portals, theme),
+  Linux packaging installation, the updater against a real newer release,
+  keyboard activation beyond the focused Cancel (Enter/Escape relied on egui’s
+  focused-button behaviour), and an actual end-to-end in-game match on this
+  build (the bridge was verified separately in game before the UI work).
+
+### 10. Linux port and release
+
+The current Linux state: CI compiles the GUI and daemon; nothing runtime-tested.
+`docs/PORTING-LINUX.md` is the handoff checklist (deps, renderer, dynamic
+resize, icon/desktop entry, Discord variants, Proton detection, bridge, rfd,
+autostart, packaging, release).
+
+`packaging/honrp.desktop` and `assets/icons/hicolor/` are already in the repo;
+they still need to be wired into `nfpm.yaml`, the release tarball and the Arch
+PKGBUILD.
+
+Release (after the Linux verification): bump `Cargo.toml` to `0.3.4`, update
+`CHANGELOG.md`, commit, tag `v0.3.4`, push the tag. `.github/workflows/release.yml`
+then builds the Linux tarball, `.deb`, `.rpm`, Arch package and the Windows
+zip/installer. The binaries in `dist/` and the local setup are deliberately not
+committed; GitHub Releases is the distribution channel.
+
+### 11. Known limitations
+
+- Linux GUI is untested at runtime (the main remaining work).
+- Windows binaries are unsigned (SmartScreen warning).
+- No tray icon by design.
+- `honrp update` is for the standalone tarball; AUR should be updated through
+  the AUR package.
+- `Help` points at the GitHub README; it only shows the troubleshooting section
+  after this branch is merged/pushed (it is pushed on this branch).
+
 ## Development
 
 ```bash

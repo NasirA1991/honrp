@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=honrp
+GenericName=Discord Rich Presence
+Comment=Discord Rich Presence for Heroes of Newerth
+Exec=honrp
+Icon=honrp
+Terminal=false
+Categories=Utility;Game;
+StartupNotify=false
+StartupWMClass=honrp

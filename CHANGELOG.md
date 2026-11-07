@@ -120,6 +120,10 @@
   moved to Details, a neutral **Launch at startup** row, tooltips on every
   status, and a Details dialog (version, bridge, states, game folder, log
   path).
+- Linux port preparation: `packaging/honrp.desktop`, the hicolor icon set in
+  `assets/icons/`, a `docs/PORTING-LINUX.md` handoff checklist, and a detailed
+  "Implementation notes" section in the README covering everything changed on
+  this branch.
 - Windows fixes: the Start Menu/desktop shortcuts explicitly use the exe as
   their icon source (and the installer is built from a clean icon resource), the
   GUI and daemon detach/destroy their console instead of leaving a hidden
