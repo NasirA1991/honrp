@@ -89,7 +89,7 @@ Open **honrp**, click **Start Rich Presence**, then launch Heroes of Newerth. If
 | Spectating | Spectating · FoC · the hero you are watching |
 | Plinko | Playing Plinko · account |
 
-The art above is an illustrative render of the card payloads, not a Discord screenshot. While in a match, hover the app window to see hero, level and KDA; the card itself stays compact.
+The image is a Discord-style preview of the six card payloads, not a screenshot; Discord's exact spacing, font and app artwork vary by client and theme. While in a match, hover the app window to see hero, level and KDA; the card itself stays compact.
 
 ## Why honrp
 
