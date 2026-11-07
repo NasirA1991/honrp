@@ -120,6 +120,11 @@
   moved to Details, a neutral **Launch at startup** row, tooltips on every
   status, and a Details dialog (version, bridge, states, game folder, log
   path).
+- Windows fixes: the Start Menu/desktop shortcuts explicitly use the exe as
+  their icon source (and the installer is built from a clean icon resource), the
+  GUI and daemon detach/destroy their console instead of leaving a hidden
+  terminal behind, and the "Rich Presence stopped" footer message clears as
+  soon as Rich Presence is started again.
 - The control window has an **Uninstall...** action with a warning. On an
   installed copy it stops the daemon and runs the Inno uninstaller (program,
   shortcuts, autostart, settings, bridge); for the portable zip it removes the

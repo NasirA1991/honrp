@@ -698,7 +698,9 @@ fn _unused(_: &View) {}
 /// hide it.  When launched from a terminal, keep the console (other processes).
 #[cfg(windows)]
 fn hide_console_if_sole() {
-    use windows_sys::Win32::System::Console::{GetConsoleProcessList, GetConsoleWindow};
+    use windows_sys::Win32::System::Console::{
+        FreeConsole, GetConsoleProcessList, GetConsoleWindow,
+    };
     use windows_sys::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_HIDE};
 
     unsafe {
@@ -710,6 +712,9 @@ fn hide_console_if_sole() {
         let count = GetConsoleProcessList(pids.as_mut_ptr(), 2);
         if count <= 1 {
             ShowWindow(hwnd, SW_HIDE);
+            // Detach and tear down the console instead of leaving a hidden
+            // conhost/Windows Terminal window around.
+            FreeConsole();
         }
     }
 }

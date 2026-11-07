@@ -245,6 +245,7 @@ struct HonrpApp {
     message: Option<String>,
     theme_set: bool,
     checked_once: bool,
+    daemon_was_running: bool,
     window_h: f32,
     update: Arc<Mutex<UpdateUi>>,
     last_dir: Option<String>,
@@ -270,6 +271,7 @@ impl HonrpApp {
             message: None,
             theme_set: false,
             checked_once: false,
+            daemon_was_running: false,
             window_h: if tall_window_requested() {
                 OVERLAY_H
             } else {
@@ -433,6 +435,12 @@ impl eframe::App for HonrpApp {
         }
 
         let status = current_status();
+        let running = status.is_some();
+        if running && !self.daemon_was_running {
+            // A stale "stopped" notice must not outlive the stopped state.
+            self.message = None;
+        }
+        self.daemon_was_running = running;
         if let Some(dir) = status.as_ref().and_then(|s| s.user_dir.as_deref()) {
             self.last_dir = Some(dir.to_string());
         }
@@ -1090,7 +1098,9 @@ fn single_instance() -> bool {
 
 #[cfg(windows)]
 fn hide_own_console() {
-    use windows_sys::Win32::System::Console::{GetConsoleProcessList, GetConsoleWindow};
+    use windows_sys::Win32::System::Console::{
+        FreeConsole, GetConsoleProcessList, GetConsoleWindow,
+    };
     use windows_sys::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_HIDE};
 
     unsafe {
@@ -1102,6 +1112,7 @@ fn hide_own_console() {
         let count = GetConsoleProcessList(pids.as_mut_ptr(), 2);
         if count <= 1 {
             ShowWindow(hwnd, SW_HIDE);
+            FreeConsole();
         }
     }
 }
