@@ -184,7 +184,10 @@ jobs:
       - name: Checksums
         run: |
           cd dist
-          ls -1 | grep -v '^checksums.txt$' | xargs sha256sum > checksums.txt
+          # icons/ was only needed to build the tarball and packages; keep the
+          # release assets flat so sha256sum only sees files.
+          rm -rf icons
+          find . -maxdepth 1 -type f ! -name checksums.txt -printf '%P\n' | sort | xargs sha256sum > checksums.txt
 
       - uses: softprops/action-gh-release@v2
         with:
