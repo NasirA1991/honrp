@@ -1080,9 +1080,29 @@ fn install_update(shared: Arc<Mutex<UpdateUi>>, release: crate::update::Release)
     });
 }
 
+#[cfg(windows)]
+fn shell_open(target: &str) {
+    use windows_sys::Win32::UI::Shell::ShellExecuteW;
+    use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+
+    let op: Vec<u16> = "open\0".encode_utf16().collect();
+    let file: Vec<u16> = target.encode_utf16().chain(std::iter::once(0)).collect();
+    unsafe {
+        // No cmd.exe / inherited stdio: works after FreeConsole() too.
+        ShellExecuteW(
+            std::ptr::null_mut(),
+            op.as_ptr(),
+            file.as_ptr(),
+            std::ptr::null(),
+            std::ptr::null(),
+            SW_SHOWNORMAL,
+        );
+    }
+}
+
 fn open_path(path: &Path) {
     #[cfg(windows)]
-    let _ = Command::new("explorer").arg(path).spawn();
+    shell_open(&path.display().to_string());
     #[cfg(target_os = "linux")]
     let _ = Command::new("xdg-open").arg(path).spawn();
     #[cfg(target_os = "macos")]
@@ -1091,7 +1111,7 @@ fn open_path(path: &Path) {
 
 fn open_url(url: &str) {
     #[cfg(windows)]
-    let _ = Command::new("cmd").args(["/C", "start", "", url]).spawn();
+    shell_open(url);
     #[cfg(target_os = "linux")]
     let _ = Command::new("xdg-open").arg(url).spawn();
     #[cfg(target_os = "macos")]

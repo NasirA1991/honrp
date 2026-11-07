@@ -306,6 +306,8 @@ The old single process became two:
 - **Menu:** Help / Troubleshooting (opens `#help--troubleshooting`), Discord
   setup… (the one-time Registered Games note, reopenable), Details… (version,
   bridge build, daemon/Discord/game state, game folder, log path), Uninstall….
+  External links use `ShellExecuteW` on Windows; the old `cmd /C start` failed
+  silently after `FreeConsole()` invalidated the GUI's std handles.
 - **Theme:** follows the system (`ThemePreference::System`), with
   theme-aware ok/warn/danger/muted colours. Light mode was checked for text
   contrast. `HONRP_THEME=light|dark` forces one for screenshots.

@@ -2,6 +2,10 @@
 
 ## 0.3.3 — 2026-11-07
 
+- Help / Troubleshooting, Open folder and other external links now use
+  `ShellExecuteW` instead of spawning `cmd.exe`/`explorer.exe`. After the GUI
+  called `FreeConsole()`, the inherited std handles were invalid and the old
+  `cmd /C start` silently did nothing.
 - Practice games now report **Field Test**, not `FoC • All Pick`: the lobby
   metadata still says `caldavarphoenix`, but the console log's
   `Client loading world "fieldtest"` is authoritative during a match.
