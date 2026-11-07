@@ -2,6 +2,9 @@
 
 ## 0.3.3 — 2026-11-07
 
+- Added `docs/BRANCH-CHANGES.md`: a standalone handoff describing every change
+  on this branch (UI spec, state table, daemon protocol, installer, updater,
+  bridge 13, tests, file inventory, Linux port order).
 - Help / Troubleshooting, Open folder and other external links now use
   `ShellExecuteW` instead of spawning `cmd.exe`/`explorer.exe`. After the GUI
   called `FreeConsole()`, the inherited std handles were invalid and the old

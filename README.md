@@ -247,6 +247,12 @@ review the work and port/verify the UI without re-deriving it.
 bridge, Discord states); Linux compiles in CI (`rust` job) but the Linux GUI
 has **not been run** yet. See `docs/PORTING-LINUX.md` for the port checklist.
 
+A standalone, file-by-file handoff for another agent is in
+**[docs/BRANCH-CHANGES.md](docs/BRANCH-CHANGES.md)** — it covers the UI spec,
+Discord state table, daemon/control protocol, Windows installer, updater,
+bridge build 13, tests, the complete added/modified file inventory, and the
+order to port/release it.
+
 ### 1. Architecture: GUI + daemon, on purpose
 
 The old single process became two:
