@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.8 — 2026-11-07
+
+- Enable eframe's clipboard feature. The copy buttons (including **Copy
+  command** in the Linux startup dialog) previously wrote only to egui's
+  in-process fallback because the system clipboard backend was compiled out.
+
 ## 0.3.7 — 2026-11-07
 
 - The app's Menu entry is now just **Help** and opens the README's `#help`
