@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.9 — 2026-11-07
+
+- The app no longer offers a dead **Install** button for package-managed
+  Linux installs. Before downloading, the updater checks that the running
+  binary's directory is writable; if it is root-owned (for example
+  `/usr/bin/honrp` from the AUR), it says to update with `paru -Syu`,
+  `apt upgrade` or `dnf upgrade` instead of failing with
+  `Permission denied (os error 13)`.
+
 ## 0.3.8 — 2026-11-07
 
 - Enable eframe's clipboard feature. The copy buttons (including **Copy

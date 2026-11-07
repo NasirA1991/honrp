@@ -1076,9 +1076,18 @@ fn check_updates(shared: Arc<Mutex<UpdateUi>>) {
         match crate::update::fetch_latest() {
             Ok(release) => {
                 if crate::update::is_newer(&release.version, crate::update::current_version()) {
+                    let writable = crate::update::can_self_update();
                     if let Ok(mut g) = shared.lock() {
-                        g.text = format!("Update {} available", release.version);
-                        g.release = Some(release);
+                        if writable {
+                            g.text = format!("Update {} available", release.version);
+                            g.release = Some(release);
+                        } else {
+                            g.text = format!(
+                                "Update {} available - use your package manager",
+                                release.version
+                            );
+                            g.release = None;
+                        }
                     }
                 } else if let Ok(mut g) = shared.lock() {
                     g.text = "Up to date".to_string();

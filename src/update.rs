@@ -6,7 +6,7 @@
 //! to `tar` (bsdtar on Windows, GNU tar on Linux) so the release binary stays
 //! small and static.
 
-use std::fs;
+use std::fs::{self, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, SystemTime};
@@ -276,7 +276,50 @@ fn replace_current(new_bin: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Check whether the running binary can be replaced by the current user.
+///
+/// Package-managed copies live under /usr/bin (or another root-owned path)
+/// and must be updated by the package manager, not by the in-app updater.
+pub fn can_self_update() -> bool {
+    self_update_supported().is_ok()
+}
+
+fn self_update_supported() -> Result<()> {
+    let current = std::env::current_exe().context("locating the running honrp")?;
+    let dir = current
+        .parent()
+        .context("the honrp executable has no parent directory")?;
+    let probe = dir.join(format!(".honrp-write-test-{}", std::process::id()));
+    let _ = fs::remove_file(&probe);
+    match OpenOptions::new().write(true).create_new(true).open(&probe) {
+        Ok(file) => {
+            drop(file);
+            let _ = fs::remove_file(&probe);
+            Ok(())
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+            #[cfg(unix)]
+            bail!(
+                "honrp is installed in {}, which is managed by the package manager and \
+                 cannot replace itself. Update it with `paru -Syu` (Arch), \
+                 `sudo apt upgrade` (Debian/Ubuntu) or `sudo dnf upgrade` (Fedora); \
+                 in-app update only works for a standalone copy in a writable folder \
+                 such as ~/.local/bin.",
+                dir.display()
+            );
+            #[cfg(windows)]
+            bail!(
+                "honrp is installed in {}, which this user cannot write to. Run the \
+                 installer, or move honrp to a writable folder and try again.",
+                dir.display()
+            );
+        }
+        Err(e) => Err(e).with_context(|| format!("checking write access to {}", dir.display())),
+    }
+}
+
 pub fn install(release: &Release) -> Result<PathBuf> {
+    self_update_supported()?;
     let asset = platform_asset(&release.assets)
         .with_context(|| format!("release {} has no binary for this platform", release.tag))?;
     let dir = std::env::temp_dir().join(format!("honrp-update-{}", std::process::id()));
@@ -353,7 +396,11 @@ pub fn run(check_only: bool) -> Result<()> {
         }
     }
     if check_only {
-        println!("run `honrp update` to install it.");
+        if can_self_update() {
+            println!("run `honrp update` to install it.");
+        } else {
+            println!("This copy is package-managed; update it with your package manager.");
+        }
         return Ok(());
     }
     let path = install(&release)?;
