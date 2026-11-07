@@ -77,11 +77,11 @@ Open **honrp**, click **Start Rich Presence**, then launch Heroes of Newerth. If
 
 ## What it looks like
 
-<p align="center">
-  <img src="assets/app-screenshot.png" alt="honrp control window showing Rich Presence on, Discord ready, and the Start/Stop button" width="480">
-</p>
+| Linux | Windows (layout mockup) |
+|---|---|
+| <img src="assets/app-screenshot-linux.png" alt="honrp on Linux: custom titlebar with minimize and close buttons flush right" width="390"> | <img src="assets/app-screenshot-windows-mockup.png" alt="Windows layout mockup of honrp with a native-style titlebar" width="390"> |
 
-The control window stays out of the way: current status, one action button, Config and Menu. The Windows build has the same layout with a startup toggle instead of the Linux command dialog.
+The control window stays out of the way: current status, one action button, Config and Menu. The Linux build now draws its own slim titlebar with the minimize and close buttons flush right; Windows keeps the native title bar. The Windows image is a layout mockup, not a capture from Windows.
 
 ## What it shows
 

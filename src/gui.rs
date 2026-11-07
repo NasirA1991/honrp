@@ -20,6 +20,12 @@ const HELP_URL: &str = "https://github.com/NasirA1991/honrp";
 
 const WINDOW_W: f32 = 480.0;
 const MAIN_BASE: f32 = 192.0;
+
+const TITLEBAR_H: f32 = if cfg!(target_os = "linux") { 30.0 } else { 0.0 };
+
+fn chrome_extra() -> f32 {
+    TITLEBAR_H
+}
 const EXTRA_ROW: f32 = 24.0;
 const OVERLAY_H: f32 = 236.0;
 
@@ -223,15 +229,22 @@ pub fn run() -> anyhow::Result<()> {
     } else {
         MAIN_BASE
     };
+    let mut viewport = egui::ViewportBuilder::default()
+        .with_inner_size([WINDOW_W, start_h + chrome_extra()])
+        .with_min_inner_size([WINDOW_W, MAIN_BASE + chrome_extra()])
+        .with_max_inner_size([WINDOW_W, OVERLAY_H + chrome_extra()])
+        .with_resizable(false)
+        .with_title("honrp")
+        .with_app_id("honrp")
+        .with_icon(window_icon());
+    #[cfg(target_os = "linux")]
+    {
+        // Draw our own titlebar so the minimize/close buttons sit flush right
+        // instead of inheriting the compositor's inset decoration layout.
+        viewport = viewport.with_decorations(false);
+    }
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([WINDOW_W, start_h])
-            .with_min_inner_size([WINDOW_W, MAIN_BASE])
-            .with_max_inner_size([WINDOW_W, OVERLAY_H])
-            .with_resizable(false)
-            .with_title("honrp")
-            .with_app_id("honrp")
-            .with_icon(window_icon()),
+        viewport,
         renderer: eframe::Renderer::Wgpu,
         ..Default::default()
     };
@@ -266,6 +279,7 @@ struct HonrpApp {
     #[cfg(windows)]
     autostart: bool,
     size_hints_set: bool,
+    icon_texture: Option<egui::TextureHandle>,
 }
 
 impl HonrpApp {
@@ -297,6 +311,7 @@ impl HonrpApp {
             #[cfg(windows)]
             autostart: autostart_enabled(),
             size_hints_set: false,
+            icon_texture: None,
         }
     }
 
@@ -397,6 +412,111 @@ impl HonrpApp {
             .unwrap_or_default();
         self.config_ipc = cfg.ipc_socket;
         self.config_open = true;
+    }
+
+    fn ensure_icon(&mut self, ctx: &egui::Context) {
+        if self.icon_texture.is_none() {
+            let image = egui::ColorImage::from_rgba_unmultiplied([64, 64], ICON_RGBA);
+            self.icon_texture = Some(ctx.load_texture(
+                "honrp-window-icon",
+                image,
+                egui::TextureOptions::LINEAR,
+            ));
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    fn titlebar(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
+        let rect = ui.max_rect();
+        let painter = ui.painter();
+        let bg = egui::Color32::from_rgb(30, 31, 34);
+        let edge = egui::Color32::from_rgb(43, 45, 49);
+        painter.rect_filled(rect, 0.0, bg);
+        painter.line_segment(
+            [
+                egui::pos2(rect.left(), rect.bottom() - 0.5),
+                egui::pos2(rect.right(), rect.bottom() - 0.5),
+            ],
+            egui::Stroke::new(1.0, edge),
+        );
+
+        if let Some(texture) = &self.icon_texture {
+            let icon = egui::Rect::from_center_size(
+                egui::pos2(rect.left() + 17.0, rect.center().y),
+                egui::vec2(17.0, 17.0),
+            );
+            painter.image(
+                texture.id(),
+                icon,
+                egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                egui::Color32::WHITE,
+            );
+        }
+        painter.text(
+            rect.center(),
+            egui::Align2::CENTER_CENTER,
+            "honrp",
+            egui::FontId::proportional(13.0),
+            egui::Color32::from_rgb(242, 243, 245),
+        );
+
+        let button = 28.0;
+        let right = rect.right() - 4.0;
+        let close = egui::Rect::from_min_size(
+            egui::pos2(right - button, rect.top() + 1.0),
+            egui::vec2(button, button),
+        );
+        let minimize = egui::Rect::from_min_size(
+            egui::pos2(close.left() - button - 2.0, rect.top() + 1.0),
+            egui::vec2(button, button),
+        );
+
+        let close_resp = ui.interact(close, ui.id().with("titlebar-close"), egui::Sense::click());
+        let min_resp = ui.interact(
+            minimize,
+            ui.id().with("titlebar-minimize"),
+            egui::Sense::click(),
+        );
+        if close_resp.hovered() {
+            painter.rect_filled(close, 4.0, egui::Color32::from_rgb(232, 17, 35));
+        } else if min_resp.hovered() {
+            painter.rect_filled(minimize, 4.0, egui::Color32::from_rgb(58, 61, 68));
+        }
+        let icon_color = if close_resp.hovered() {
+            egui::Color32::WHITE
+        } else {
+            egui::Color32::from_rgb(220, 223, 228)
+        };
+        let c = close.center();
+        let stroke = egui::Stroke::new(1.2, icon_color);
+        painter.line_segment(
+            [c + egui::vec2(-4.0, -4.0), c + egui::vec2(4.0, 4.0)],
+            stroke,
+        );
+        painter.line_segment(
+            [c + egui::vec2(4.0, -4.0), c + egui::vec2(-4.0, 4.0)],
+            stroke,
+        );
+        let m = minimize.center();
+        painter.line_segment(
+            [m + egui::vec2(-5.0, 0.0), m + egui::vec2(5.0, 0.0)],
+            stroke,
+        );
+
+        if close_resp.clicked() {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        } else if min_resp.clicked() {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
+        }
+
+        let drag = egui::Rect::from_min_max(
+            rect.min,
+            egui::pos2(minimize.left() - 4.0, rect.max.y),
+        );
+        let drag_resp = ui.interact(drag, ui.id().with("titlebar-drag"), egui::Sense::drag());
+        if drag_resp.drag_started() {
+            ctx.send_viewport_cmd(egui::ViewportCommand::StartDrag);
+        }
     }
 
     fn menu(&mut self, ui: &mut egui::Ui) {
@@ -527,17 +647,30 @@ impl eframe::App for HonrpApp {
             // compositors: they still let you drag the window taller. Pin the
             // min/max hints to the current content height so both axes stay
             // fixed, while the app can still resize for dialogs.
+            let full_h = desired_h + chrome_extra();
             ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(egui::vec2(
-                WINDOW_W, desired_h,
+                WINDOW_W, full_h,
             )));
             ctx.send_viewport_cmd(egui::ViewportCommand::MaxInnerSize(egui::vec2(
-                WINDOW_W, desired_h,
+                WINDOW_W, full_h,
             )));
             ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(
-                WINDOW_W, desired_h,
+                WINDOW_W, full_h,
             )));
             ctx.send_viewport_cmd(egui::ViewportCommand::Resizable(false));
             self.size_hints_set = true;
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            self.ensure_icon(&ctx);
+            egui::Panel::top("honrp-titlebar")
+                .exact_size(TITLEBAR_H)
+                .show_separator_line(false)
+                .frame(
+                    egui::Frame::NONE.fill(egui::Color32::from_rgb(30, 31, 34)),
+                )
+                .show(root, |ui| self.titlebar(ui, &ctx));
         }
 
         egui::CentralPanel::default().show(root, |ui| {

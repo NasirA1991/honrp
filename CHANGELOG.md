@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.10 — 2026-11-07
+
+- Linux now draws its own slim titlebar instead of relying on the compositor
+  decoration. Minimize and close are flush right, the titlebar is draggable,
+  and the window stays fixed at 480×222 (480×266 with dialogs). Windows keeps
+  the native titlebar.
+- Added current Linux and Windows-mockup screenshots to the README.
+
 ## 0.3.9 — 2026-11-07
 
 - The app no longer offers a dead **Install** button for package-managed
