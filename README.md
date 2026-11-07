@@ -77,7 +77,7 @@ Open **honrp**, click **Start Rich Presence**, then launch Heroes of Newerth. If
 ## What it shows
 
 <p align="center">
-  <img src="assets/states.png" alt="honrp states: main menu, queue, hero select, match, spectating and Plinko" width="100%">
+  <img src="assets/states-discord.png" alt="honrp states: main menu, queue, hero select, match, spectating and Plinko" width="100%">
 </p>
 
 | Where you are | What Discord shows |

@@ -123,7 +123,7 @@ def draw_section(canvas: Image.Image, x: int, y: int, details: str,
 
 
 def main() -> None:
-    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "states.png")
+    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "states-discord.png")
     canvas = Image.new("RGBA", (W * S, H * S), BG + (255,))
     top = (H * S - (ROWS * SECTION_H + (ROWS - 1) * GAP_Y) * S) // 2
     for i, (_, details, state) in enumerate(CARDS):
