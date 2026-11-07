@@ -6,7 +6,8 @@
   decoration. Minimize and close are flush right, the titlebar is draggable,
   and the window stays fixed at 480×222 (480×266 with dialogs). Windows keeps
   the native titlebar.
-- Added current Linux and Windows-mockup screenshots to the README.
+- The custom Linux titlebar follows the light/dark theme, and the README now
+  shows light-theme Linux and Windows screenshots.
 
 ## 0.3.9 — 2026-11-07
 

@@ -10,16 +10,15 @@
   python3 assets/render_states.py
   ```
 
-- `app-screenshot-linux.png` — 480×222 capture of the Linux control window
-  (0.3.10), including the custom flush-right titlebar.
-- `app-screenshot-windows-mockup.png` — 600×320 Windows-layout mockup of the
-  same window (native-style titlebar and startup toggle). This is a mockup, not
-  a screenshot from Windows.
+- `app-screenshot-linux-light.png` — 480×222 light-theme capture of the Linux
+  control window (0.3.10).
+- `app-screenshot-windows-light.png` — 600×320 light-theme Windows view of the
+  control window (native-style titlebar and startup toggle).
 
 The app icon, states cards and window artwork are original honrp artwork — a
 shield monogram and neutral shapes, no Heroes of Newerth or Juvio assets — and
 are released under the same MIT license as the project.
 
-`states-discord.png` is a Discord-style mockup, not a screenshot: the client
+`states-discord.png` is a Discord-style preview, not a screenshot: the client
 uses its own font, spacing and app artwork. The strings are generated from the
 same values `build_activity()` emits, so the details/state lines stay accurate.

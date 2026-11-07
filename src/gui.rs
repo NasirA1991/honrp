@@ -429,8 +429,17 @@ impl HonrpApp {
     fn titlebar(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         let rect = ui.max_rect();
         let painter = ui.painter();
-        let bg = egui::Color32::from_rgb(30, 31, 34);
-        let edge = egui::Color32::from_rgb(43, 45, 49);
+        let dark = ui.visuals().dark_mode;
+        let bg = if dark {
+            egui::Color32::from_rgb(30, 31, 34)
+        } else {
+            egui::Color32::from_rgb(243, 243, 243)
+        };
+        let edge = if dark {
+            egui::Color32::from_rgb(43, 45, 49)
+        } else {
+            egui::Color32::from_rgb(214, 214, 214)
+        };
         painter.rect_filled(rect, 0.0, bg);
         painter.line_segment(
             [
@@ -457,7 +466,11 @@ impl HonrpApp {
             egui::Align2::CENTER_CENTER,
             "honrp",
             egui::FontId::proportional(13.0),
-            egui::Color32::from_rgb(242, 243, 245),
+            if dark {
+                egui::Color32::from_rgb(242, 243, 245)
+            } else {
+                egui::Color32::from_rgb(32, 33, 36)
+            },
         );
 
         let button = 28.0;
@@ -480,12 +493,22 @@ impl HonrpApp {
         if close_resp.hovered() {
             painter.rect_filled(close, 4.0, egui::Color32::from_rgb(232, 17, 35));
         } else if min_resp.hovered() {
-            painter.rect_filled(minimize, 4.0, egui::Color32::from_rgb(58, 61, 68));
+            painter.rect_filled(
+                minimize,
+                4.0,
+                if dark {
+                    egui::Color32::from_rgb(58, 61, 68)
+                } else {
+                    egui::Color32::from_rgb(226, 226, 226)
+                },
+            );
         }
         let icon_color = if close_resp.hovered() {
             egui::Color32::WHITE
-        } else {
+        } else if dark {
             egui::Color32::from_rgb(220, 223, 228)
+        } else {
+            egui::Color32::from_rgb(60, 64, 67)
         };
         let c = close.center();
         let stroke = egui::Stroke::new(1.2, icon_color);
@@ -664,12 +687,15 @@ impl eframe::App for HonrpApp {
         #[cfg(target_os = "linux")]
         {
             self.ensure_icon(&ctx);
+            let bar_bg = if matches!(ctx.theme(), egui::Theme::Dark) {
+                egui::Color32::from_rgb(30, 31, 34)
+            } else {
+                egui::Color32::from_rgb(243, 243, 243)
+            };
             egui::Panel::top("honrp-titlebar")
                 .exact_size(TITLEBAR_H)
                 .show_separator_line(false)
-                .frame(
-                    egui::Frame::NONE.fill(egui::Color32::from_rgb(30, 31, 34)),
-                )
+                .frame(egui::Frame::NONE.fill(bar_bg))
                 .show(root, |ui| self.titlebar(ui, &ctx));
         }
 
