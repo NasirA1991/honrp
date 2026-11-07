@@ -33,7 +33,7 @@ impl Default for Config {
             large_text: "Heroes of Newerth".into(),
             poll_interval: 1.0,
             refresh_interval: 300.0,
-            show_timer: false,
+            show_timer: true,
             show_kda: true,
             short_maps: true,
             ipc_socket: String::new(),

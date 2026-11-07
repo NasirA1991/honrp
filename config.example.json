@@ -5,7 +5,7 @@
   "poll_interval": 1.0,
   "refresh_interval": 300,
   "ipc_socket": "",
-  "show_timer": false,
+  "show_timer": true,
   "show_kda": true,
   "short_maps": true,
   "check_updates": true,

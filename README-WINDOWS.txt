@@ -32,7 +32,7 @@ A small panel: 480x192 normally, growing by 24 px for an action hint, and to
     Closing this window keeps Rich Presence running in the background.
     ( ) Launch at startup
     ─────────────────────────────────────────────
-    honrp 0.3.10 · Up to date
+    honrp 0.3.11 · Up to date
 
 - The first line shows observable states, separately: Rich Presence on (green)
   or off (grey), then Discord. **Discord ready** means Discord's IPC endpoint
@@ -50,7 +50,7 @@ A small panel: 480x192 normally, growing by 24 px for an action hint, and to
   **Launch at startup...**, which opens a dialog with the copyable
   `honrp install` / `honrp uninstall` commands. A faint separator sits above
   the footer.
-- The footer **honrp 0.3.10 · Up to date** is a link: click it to check for
+- The footer **honrp 0.3.11 · Up to date** is a link: click it to check for
   updates. When one exists, an **Install x.y.z** button appears next to it.
 - **Config** opens a settings screen: the Heroes of Newerth documents folder
   (with **Browse...** / **Open folder**) and an optional Discord IPC socket
@@ -74,7 +74,7 @@ check_updates.
 
 Updating
 --------
-The window checks GitHub on start; clicking the footer (honrp 0.3.10 · Up to
+The window checks GitHub on start; clicking the footer (honrp 0.3.11 · Up to
 date) checks again and offers **Install x.y.z** when a newer release exists,
 verified against the release checksums. After an update close and reopen honrp.
 The Lua bridge is embedded in the binary and rewritten automatically when it

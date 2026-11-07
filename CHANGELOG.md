@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.11 — 2026-11-07
+
+- Enable the Discord elapsed timer by default. `honrp` now sends the match
+  start timestamp (from the in-game clock) with the activity, so Discord shows
+  the real match duration and it no longer resets to "just now" whenever KDA or
+  details change.
+
 ## 0.3.10 — 2026-11-07
 
 - Linux now draws its own slim titlebar instead of relying on the compositor

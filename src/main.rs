@@ -180,6 +180,54 @@ fn resolve_user_dir(explicit: Option<PathBuf>, prefix: Option<PathBuf>) -> Optio
 }
 
 fn status(cfg: &Config, as_json: bool, user_dir: Option<PathBuf>) -> Result<()> {
+    // Prefer the running daemon. The local probe below starts at the end of
+    // console.log, so on its own it would report "Main Menu" until the next
+    // heartbeat even while the daemon is in a match.
+    if user_dir.is_none() {
+        if let Some(daemon) = control::status() {
+            if as_json {
+                println!("{}", serde_json::to_string_pretty(&daemon)?);
+            } else {
+                println!("daemon:      running");
+                println!(
+                    "game:        {}",
+                    if daemon.in_game {
+                        "in match"
+                    } else if daemon.in_queue {
+                        "in queue"
+                    } else {
+                        "menu"
+                    }
+                );
+                if !daemon.details.is_empty() || !daemon.state.is_empty() {
+                    println!(
+                        "card:        {}{}{}",
+                        daemon.details,
+                        if daemon.state.is_empty() { "" } else { "  \u{b7}  " },
+                        daemon.state
+                    );
+                }
+                println!(
+                    "discord:     {}",
+                    if daemon.discord {
+                        "connected"
+                    } else {
+                        "not connected"
+                    }
+                );
+                if let Some(pid) = daemon.game_pid {
+                    println!("game pid:    {pid}");
+                }
+                if let Some(dir) = daemon.user_dir {
+                    println!("game folder: {dir}");
+                }
+                if !daemon.message.is_empty() {
+                    println!("message:     {}", daemon.message);
+                }
+            }
+            return Ok(());
+        }
+    }
     let games = detect::find_games();
     let prefix = games.last().and_then(|g| g.prefix.as_deref());
     let ud = detect::pick_user_dir(prefix, user_dir.as_deref());
