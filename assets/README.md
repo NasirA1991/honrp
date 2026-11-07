@@ -14,10 +14,10 @@
   control window (0.3.10).
 - `app-screenshot-linux-dark.png` — 480×222 dark-theme capture of the same
   Linux window.
-- `app-screenshot-windows-light.png` — 600×320 light-theme Windows view of the
-  control window (native-style titlebar and startup toggle).
-- `app-screenshot-windows-dark.png` — 600×320 dark-theme Windows view of the
-  same window.
+- `app-screenshot-windows-light-window.png` — 480×224 light-theme Windows
+  control window only.
+- `app-screenshot-windows-dark-window.png` — 480×224 dark-theme Windows
+  control window only.
 
 The app icon, states cards and window artwork are original honrp artwork — a
 shield monogram and neutral shapes, no Heroes of Newerth or Juvio assets — and

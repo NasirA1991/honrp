@@ -79,8 +79,8 @@ Open **honrp**, click **Start Rich Presence**, then launch Heroes of Newerth. If
 
 | | Linux | Windows |
 |---|---|---|
-| **Light** | <img src="assets/app-screenshot-linux-light.png" alt="honrp control window on Linux, light theme" width="390"> | <img src="assets/app-screenshot-windows-light.png" alt="honrp control window on Windows, light theme" width="390"> |
-| **Dark** | <img src="assets/app-screenshot-linux-dark.png" alt="honrp control window on Linux, dark theme" width="390"> | <img src="assets/app-screenshot-windows-dark.png" alt="honrp control window on Windows, dark theme" width="390"> |
+| **Light** | <img src="assets/app-screenshot-linux-light.png" alt="honrp control window on Linux, light theme" width="390"> | <img src="assets/app-screenshot-windows-light-window.png" alt="honrp control window on Windows, light theme" width="390"> |
+| **Dark** | <img src="assets/app-screenshot-linux-dark.png" alt="honrp control window on Linux, dark theme" width="390"> | <img src="assets/app-screenshot-windows-dark-window.png" alt="honrp control window on Windows, dark theme" width="390"> |
 
 The control window stays out of the way: current status, one action button, Config and Menu. It follows your system light/dark theme.
 
