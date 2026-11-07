@@ -215,6 +215,13 @@ section. If your problem isn't here, open an
   lists the sockets it tries.
 - **Two cards / Juvio detected by Discord** — same Registered Games fix as on
   Windows.
+- **Discord says "Playing honrp" while Rich Presence is off** — that is
+  Discord's own process detection, not honrp's presence. It triggers when the
+  binary is run from a path Discord scans as a game library, typically a
+  checkout under `.../Games/.../target/release/honrp`; the installed
+  `/usr/bin/honrp` is not detected. Remove or disable `honrp` under Discord
+  *Settings → Registered Games*. honrp opens no Discord IPC connection while
+  Rich Presence is off.
 - **systemd service** — `systemctl --user status honrp` and
   `journalctl --user -u honrp`.
 - **No window (Wayland/VM)** — the GUI needs a working Vulkan driver; use

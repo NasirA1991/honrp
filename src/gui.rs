@@ -33,6 +33,16 @@ fn tall_window_requested() -> bool {
 /// 64x64 RGBA, generated from assets/icon.png (no PNG decoder dependency).
 const ICON_RGBA: &[u8] = include_bytes!("../assets/icon-64.rgba");
 
+#[cfg(windows)]
+const DIR_HINT: &str = r"C:\Users\you\Documents\Juvio\Heroes of Newerth";
+#[cfg(not(windows))]
+const DIR_HINT: &str =
+    "~/.local/share/Steam/steamapps/compatdata/<id>/pfx/drive_c/users/steamuser/Documents/Juvio/Heroes of Newerth";
+#[cfg(windows)]
+const IPC_HINT: &str = r"\\.\pipe\discord-ipc-0";
+#[cfg(not(windows))]
+const IPC_HINT: &str = "/run/user/1000/discord-ipc-0";
+
 fn window_icon() -> egui::IconData {
     egui::IconData {
         rgba: ICON_RGBA.to_vec(),
@@ -217,6 +227,7 @@ pub fn run() -> anyhow::Result<()> {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([WINDOW_W, start_h])
             .with_min_inner_size([WINDOW_W, MAIN_BASE])
+            .with_max_inner_size([WINDOW_W, OVERLAY_H])
             .with_resizable(false)
             .with_title("honrp")
             .with_icon(window_icon()),
@@ -253,6 +264,7 @@ struct HonrpApp {
     config_ipc: String,
     #[cfg(windows)]
     autostart: bool,
+    size_hints_set: bool,
 }
 
 impl HonrpApp {
@@ -283,6 +295,7 @@ impl HonrpApp {
             config_ipc: cfg.ipc_socket,
             #[cfg(windows)]
             autostart: autostart_enabled(),
+            size_hints_set: false,
         }
     }
 
@@ -303,7 +316,7 @@ impl HonrpApp {
         ui.add(
             egui::TextEdit::singleline(&mut self.config_dir)
                 .desired_width(ui.available_width())
-                .hint_text(r"C:\Users\you\Documents\Juvio\Heroes of Newerth"),
+                .hint_text(DIR_HINT),
         );
         ui.horizontal(|ui| {
             if ui.button("Browse...").clicked() {
@@ -333,7 +346,7 @@ impl HonrpApp {
         ui.add(
             egui::TextEdit::singleline(&mut self.config_ipc)
                 .desired_width(ui.available_width())
-                .hint_text(r"\\.\pipe\discord-ipc-0"),
+                .hint_text(IPC_HINT),
         );
 
         ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
@@ -496,11 +509,26 @@ impl eframe::App for HonrpApp {
                 }
                 + if has_state { EXTRA_ROW } else { 0.0 }
         };
-        if (self.window_h - desired_h).abs() > 0.5 {
+        let resized = (self.window_h - desired_h).abs() > 0.5;
+        if resized {
             self.window_h = desired_h;
+        }
+        if resized || !self.size_hints_set {
+            // with_resizable(false) alone is not enough on some Wayland
+            // compositors: they still let you drag the window taller. Pin the
+            // min/max hints to the current content height so both axes stay
+            // fixed, while the app can still resize for dialogs.
+            ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(egui::vec2(
+                WINDOW_W, desired_h,
+            )));
+            ctx.send_viewport_cmd(egui::ViewportCommand::MaxInnerSize(egui::vec2(
+                WINDOW_W, desired_h,
+            )));
             ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(
                 WINDOW_W, desired_h,
             )));
+            ctx.send_viewport_cmd(egui::ViewportCommand::Resizable(false));
+            self.size_hints_set = true;
         }
 
         egui::CentralPanel::default().show(root, |ui| {

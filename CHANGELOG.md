@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.5 — 2026-11-07
+
+- Fix the Linux window still being vertically resizable: pin min/max inner
+  size hints to the current content height and resend them when a dialog
+  changes the height. The window is now fixed at 480×192 (or 480×236 with
+  Config/dialogs) on KDE Wayland.
+- Use Linux placeholders in Config (Proton Documents folder and
+  `/run/user/.../discord-ipc-0`) instead of the Windows paths.
+- Classify the desktop entry as a utility instead of a game.
+- Fixed the Windows installer artifact path so `honrp-setup-*.exe` is
+  published with releases.
+- Note in the Linux troubleshooting section why Discord can show
+  "Playing honrp": its own process detection for a binary under `Games/`, not
+  Rich Presence.
+
 ## 0.3.4 — 2026-11-07
 
 - Linux port of the egui control window: verified on Wayland (KDE) and X11.
