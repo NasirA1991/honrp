@@ -1,7 +1,7 @@
 ; honrp — per-user Windows installer (Inno Setup 6)
 ;
-; Build:  ISCC.exe /DAppVersion=0.3.11 packaging\honrp.iss
-; Output: dist\honrp-setup-0.3.11.exe
+; Build:  ISCC.exe /DAppVersion=0.3.12 packaging\honrp.iss
+; Output: dist\honrp-setup-0.3.12.exe
 ;
 ; Installs into %LOCALAPPDATA%\Programs\honrp (no admin prompt), creates a
 ; Start Menu shortcut, optionally starts with Windows, and offers to launch
@@ -9,7 +9,7 @@
 ; on first start.
 
 #ifndef AppVersion
-  #define AppVersion "0.3.11"
+  #define AppVersion "0.3.12"
 #endif
 
 #define AppName "honrp"

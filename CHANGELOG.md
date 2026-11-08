@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.12 — 2026-11-08
+
+The operationvivaldi hardening pass:
+
+- Control channel now requires a per-daemon 0600 token for `status`/`stop`,
+  has read/write timeouts and a 4 KiB request cap.
+- Windows Discord IPC reads time out instead of blocking forever.
+- Updates refuse to run without checksums; failed checks aren't cached;
+  prerelease tags are ignored.
+- Config parse failures warn instead of silently falling back; intervals are
+  validated; the CWD config fallback is gone.
+- An unterminated managed block in `startup.lua` is refused instead of
+  truncating user content; the whole original is backed up.
+- Single-instance detection uses a lock file instead of a TCP port.
+- Discord availability probing is slower; systemd `%` paths are escaped.
+- Adds 23 tests and gates fmt, clippy and headless tests in CI.
+
 ## 0.3.11 — 2026-11-07
 
 - Enable the Discord elapsed timer by default. `honrp` now sends the match
