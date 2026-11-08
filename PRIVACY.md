@@ -28,6 +28,7 @@ processes are inspected (only processes whose comm is `juvio.exe`).
 | `.../Documents/Juvio/Heroes of Newerth/startup.lua` | the Lua bridge, inside a `--- HONRP BEGIN/END ---` managed block; existing content is preserved and backed up |
 | `~/.config/honrp/config.json` | configuration |
 | `~/.config/honrp/control.token` | per-daemon 0600 token for the loopback control protocol |
+| `~/.config/honrp/gui.lock` | single-instance lock file for the control window |
 | `~/.config/honrp/daemon.log` | daemon start/stop log |
 | `~/.config/systemd/user/honrp.service` | the user service (no root) |
 | `~/.config/autostart/honrp.desktop` | fallback autostart when systemd is unavailable |
@@ -44,10 +45,10 @@ The daemon normally speaks only to the local Discord IPC unix socket
 
 Two local/loopback connections exist:
 
-- The GUI and daemon use TCP on `127.0.0.1:47831` and `127.0.0.1:47832` for
-  single-instance detection and the control protocol. These are bound to
-  loopback only. `status` and `stop` require a per-daemon token stored in a
-  0600 file; `ping` is unauthenticated.
+- The daemon uses TCP on `127.0.0.1:47832` for the control protocol. It is
+  bound to loopback only. `status` and `stop` require a per-daemon token stored
+  in a 0600 file; `ping` is unauthenticated. The GUI uses a lock file, not a
+  port, for single-instance detection.
 - When update checks are enabled (`check_updates`, default `true`), honrp
   requests the GitHub release API and, if you install an update, the release
   asset over HTTPS. Set `check_updates` to `false` to disable the check.

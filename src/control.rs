@@ -82,6 +82,27 @@ pub struct DaemonStatus {
     pub message: String,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ControlCommand {
+    Ping,
+    Status,
+    Stop,
+    Invalid,
+}
+
+fn parse_control(line: &str, token: &str) -> ControlCommand {
+    let mut parts = line.split_whitespace();
+    let cmd = parts.next().unwrap_or("");
+    let supplied = parts.next().unwrap_or("");
+    let authed = supplied == token;
+    match cmd {
+        "ping" => ControlCommand::Ping,
+        "status" if authed => ControlCommand::Status,
+        "stop" if authed => ControlCommand::Stop,
+        _ => ControlCommand::Invalid,
+    }
+}
+
 fn current() -> DaemonStatus {
     let s = crate::status::get();
     DaemonStatus {
@@ -185,21 +206,20 @@ pub fn serve(stop: Arc<AtomicBool>) {
         if reader.read_line(&mut line).is_err() {
             continue;
         }
-        let mut parts = line.split_whitespace();
-        let cmd = parts.next().unwrap_or("");
-        let supplied = parts.next().unwrap_or("");
-        let authed = supplied == token;
-        let reply = match cmd {
-            "status" if authed => serde_json::to_string(&current()).unwrap_or_else(|_| "{}".into()),
-            "ping" => "ok".to_string(),
-            "stop" if authed => {
+        let command = parse_control(line.trim(), &token);
+        let reply = match command {
+            ControlCommand::Status => {
+                serde_json::to_string(&current()).unwrap_or_else(|_| "{}".into())
+            }
+            ControlCommand::Ping => "ok".to_string(),
+            ControlCommand::Stop => {
                 stop.store(true, Ordering::Relaxed);
                 "ok".to_string()
             }
-            _ => "err".to_string(),
+            ControlCommand::Invalid => "err".to_string(),
         };
         let _ = writeln!(stream, "{reply}");
-        if cmd == "stop" && authed {
+        if command == ControlCommand::Stop {
             break;
         }
     }
@@ -269,4 +289,29 @@ pub fn ensure_daemon() -> bool {
         }
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn token_gates_status_and_stop_but_not_ping() {
+        assert_eq!(parse_control("ping", "secret"), ControlCommand::Ping);
+        assert_eq!(parse_control("status", "secret"), ControlCommand::Invalid);
+        assert_eq!(
+            parse_control("status wrong", "secret"),
+            ControlCommand::Invalid
+        );
+        assert_eq!(
+            parse_control("status secret", "secret"),
+            ControlCommand::Status
+        );
+        assert_eq!(parse_control("stop", "secret"), ControlCommand::Invalid);
+        assert_eq!(parse_control("stop secret", "secret"), ControlCommand::Stop);
+        assert_eq!(
+            parse_control("stop secret extra", "secret"),
+            ControlCommand::Stop
+        );
+    }
 }

@@ -212,10 +212,10 @@ struct UpdateUi {
 }
 
 pub fn run() -> anyhow::Result<()> {
-    if !single_instance() {
+    let Some(_instance_lock) = single_instance() else {
         // the control window is already open
         return Ok(());
-    }
+    };
     hide_own_console();
 
     // adopt a running daemon, or start one in the background
@@ -1310,13 +1310,25 @@ fn open_url(url: &str) {
     let _ = Command::new("open").arg(url).spawn();
 }
 
-fn single_instance() -> bool {
-    match std::net::TcpListener::bind(("127.0.0.1", 47831)) {
-        Ok(listener) => {
-            std::mem::forget(listener);
-            true
-        }
-        Err(_) => false,
+fn single_instance() -> Option<std::fs::File> {
+    use fs2::FileExt;
+
+    let path = dirs::config_dir()
+        .map(|d| d.join("honrp").join("gui.lock"))
+        .unwrap_or_else(|| std::env::temp_dir().join("honrp-gui.lock"));
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&path)
+        .ok()?;
+    match file.try_lock_exclusive() {
+        Ok(()) => Some(file),
+        Err(_) => None,
     }
 }
 

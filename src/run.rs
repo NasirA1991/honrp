@@ -389,8 +389,10 @@ pub fn run(cfg: &Config, opts: RunOpts) -> Result<()> {
         };
         let now = Instant::now();
 
+        // Discord endpoint probing is only for the status label; five
+        // seconds is snappy enough and avoids hammering its socket.
         let should_probe = last_probe
-            .map(|t| now.duration_since(t) >= Duration::from_millis(1500))
+            .map(|t| now.duration_since(t) >= Duration::from_secs(5))
             .unwrap_or(true);
         if should_probe {
             last_probe = Some(now);
