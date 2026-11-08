@@ -285,6 +285,7 @@ struct HonrpApp {
     #[cfg(windows)]
     autostart: bool,
     size_hints_set: bool,
+    #[cfg(target_os = "linux")]
     icon_texture: Option<egui::TextureHandle>,
 }
 
@@ -317,6 +318,7 @@ impl HonrpApp {
             #[cfg(windows)]
             autostart: autostart_enabled(),
             size_hints_set: false,
+            #[cfg(target_os = "linux")]
             icon_texture: None,
         }
     }
@@ -420,6 +422,7 @@ impl HonrpApp {
         self.config_open = true;
     }
 
+    #[cfg(target_os = "linux")]
     fn ensure_icon(&mut self, ctx: &egui::Context) {
         if self.icon_texture.is_none() {
             let image = egui::ColorImage::from_rgba_unmultiplied([64, 64], ICON_RGBA);

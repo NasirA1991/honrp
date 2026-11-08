@@ -167,11 +167,15 @@ mod tests {
         fs::write(&path, utf16("new\n")).unwrap();
         assert_eq!(tail.poll(), vec!["new"]);
 
-        // Replacement with a different inode (even if it is longer).
-        let other = dir.join("replacement");
-        fs::write(&other, utf16("replacement line\n")).unwrap();
-        fs::rename(&other, &path).unwrap();
-        assert_eq!(tail.poll(), vec!["replacement line"]);
+        // Replacement with a different inode (even if it is longer). Windows
+        // has no inode, so only the shrink path applies there.
+        #[cfg(unix)]
+        {
+            let other = dir.join("replacement");
+            fs::write(&other, utf16("replacement line\n")).unwrap();
+            fs::rename(&other, &path).unwrap();
+            assert_eq!(tail.poll(), vec!["replacement line"]);
+        }
 
         let _ = fs::remove_dir_all(&dir);
     }
