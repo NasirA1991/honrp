@@ -437,6 +437,21 @@ mod tests {
     }
 
     #[test]
+    fn rejects_release_without_checksums() {
+        let release = Release {
+            tag: "v9.9.9".into(),
+            version: "9.9.9".into(),
+            assets: vec![],
+        };
+        let asset = Asset {
+            name: "honrp-v9.9.9-x86_64-linux.tar.gz".into(),
+            browser_download_url: String::new(),
+            size: 0,
+        };
+        assert!(verify_checksum(&release, &asset, Path::new("/does/not/exist")).is_err());
+    }
+
+    #[test]
     fn picks_platform_asset() {
         let assets = vec![
             Asset {
