@@ -10,6 +10,7 @@ pub struct MatchInfo {
     pub mode: String,
 }
 
+#[allow(clippy::chunks_exact_to_as_chunks)]
 fn decode(path: &Path) -> Option<String> {
     let raw = fs::read(path).ok()?;
     let raw = raw.get(..8192.min(raw.len()))?;
@@ -71,4 +72,30 @@ pub fn newest(user_dir: &Path) -> Option<MatchInfo> {
         }
     }
     parse(best.as_deref()?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn parses_map_and_mode_from_utf16_log() {
+        let n = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("honrp-match-{}-{n}", std::process::id()));
+        fs::create_dir_all(dir.join("logs")).unwrap();
+        let path = dir.join("logs/game_1.log");
+        let text = "INFO_MAP name:\"caldavar\"\nINFO_SETTINGS mode:\"banningpick\"\n";
+        let bytes: Vec<u8> = text.encode_utf16().flat_map(|u| u.to_le_bytes()).collect();
+        let mut f = fs::File::create(&path).unwrap();
+        f.write_all(&bytes).unwrap();
+        let info = parse(&path).unwrap();
+        assert_eq!(info.map_id, "caldavar");
+        assert_eq!(info.mode, "banningpick");
+        let _ = fs::remove_dir_all(&dir);
+    }
 }

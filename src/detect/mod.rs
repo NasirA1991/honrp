@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub const DOCS_TAIL: &str = "Documents/Juvio/Heroes of Newerth";
 
@@ -28,3 +28,20 @@ pub use linux::{find_games, pick_user_dir, user_dir_candidates};
 mod windows;
 #[cfg(windows)]
 pub use windows::{find_games, pick_user_dir, user_dir_candidates};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extracts_z_drive_install_dir() {
+        let cmd = r#"Z:\mnt\gamedisk\teamgroup\Games\Juvio\bin\juvio.exe --launch"#;
+        assert_eq!(
+            install_dir_from_cmdline(cmd),
+            Some(PathBuf::from(
+                "/mnt/gamedisk/teamgroup/Games/Juvio/bin/juvio.exe"
+            ))
+        );
+        assert_eq!(install_dir_from_cmdline("juvio.exe"), None);
+    }
+}

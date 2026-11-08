@@ -7,12 +7,15 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 #[cfg(unix)]
 use std::time::Duration;
+#[cfg(windows)]
+use std::time::{Duration, Instant};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, Result};
 use serde_json::{json, Value};
 
 static NONCE: AtomicU64 = AtomicU64::new(0);
+const IPC_READ_TIMEOUT: Duration = Duration::from_secs(8);
 
 #[cfg(unix)]
 type Stream = UnixStream;
@@ -166,7 +169,7 @@ impl DiscordIpc {
     #[cfg(unix)]
     fn connect_to(path: &Path, client_id: &str) -> Result<Self> {
         let stream = UnixStream::connect(path)?;
-        stream.set_read_timeout(Some(Duration::from_secs(8)))?;
+        stream.set_read_timeout(Some(IPC_READ_TIMEOUT))?;
         stream.set_write_timeout(Some(Duration::from_secs(2)))?;
         let mut ipc = Self { stream };
         ipc.send(0, &json!({ "v": 1, "client_id": client_id }))?;
@@ -210,9 +213,67 @@ impl DiscordIpc {
         Ok(())
     }
 
+    #[cfg(windows)]
+    fn read_exact_timeout(&mut self, buf: &mut [u8], timeout: Duration) -> std::io::Result<()> {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::System::Pipes::PeekNamedPipe;
+
+        let start = Instant::now();
+        let mut filled = 0;
+        while filled < buf.len() {
+            let remaining = timeout.saturating_sub(start.elapsed());
+            if remaining.is_zero() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "timed out reading Discord IPC",
+                ));
+            }
+            let mut available: u32 = 0;
+            let ok = unsafe {
+                PeekNamedPipe(
+                    self.stream.as_raw_handle() as _,
+                    std::ptr::null_mut(),
+                    0,
+                    std::ptr::null_mut(),
+                    &mut available,
+                    std::ptr::null_mut(),
+                )
+            };
+            if ok == 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            if available == 0 {
+                std::thread::sleep(Duration::from_millis(10));
+                continue;
+            }
+            let want = ((buf.len() - filled) as u32).min(available) as usize;
+            let n = self.stream.read(&mut buf[filled..filled + want])?;
+            if n == 0 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    "Discord IPC pipe closed",
+                ));
+            }
+            filled += n;
+        }
+        Ok(())
+    }
+
     fn read_frame(&mut self) -> Result<Option<Value>> {
+        self.read_frame_depth(0)
+    }
+
+    fn read_frame_depth(&mut self, depth: u32) -> Result<Option<Value>> {
+        if depth > 8 {
+            return Err(anyhow!("Discord IPC ping loop"));
+        }
         let mut hdr = [0u8; 8];
+        #[cfg(unix)]
         if self.stream.read_exact(&mut hdr).is_err() {
+            return Ok(None);
+        }
+        #[cfg(windows)]
+        if self.read_exact_timeout(&mut hdr, IPC_READ_TIMEOUT).is_err() {
             return Ok(None);
         }
         let op = u32::from_le_bytes([hdr[0], hdr[1], hdr[2], hdr[3]]);
@@ -221,11 +282,14 @@ impl DiscordIpc {
             return Err(anyhow!("discord frame too large: {len}"));
         }
         let mut body = vec![0u8; len];
+        #[cfg(unix)]
         self.stream.read_exact(&mut body)?;
+        #[cfg(windows)]
+        self.read_exact_timeout(&mut body, IPC_READ_TIMEOUT)?;
         if op == 3 {
             // ping -> pong
             let _ = self.send(4, &serde_json::from_slice(&body).unwrap_or(Value::Null));
-            return self.read_frame();
+            return self.read_frame_depth(depth + 1);
         }
         Ok(Some(serde_json::from_slice(&body)?))
     }
@@ -256,12 +320,7 @@ impl DiscordIpc {
         if self.stream.set_nonblocking(true).is_err() {
             return;
         }
-        loop {
-            match self.read_frame() {
-                Ok(Some(_)) => continue,
-                _ => break,
-            }
-        }
+        while let Ok(Some(_)) = self.read_frame() {}
         let _ = self.stream.set_nonblocking(false);
     }
 

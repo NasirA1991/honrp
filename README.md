@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Discord Rich Presence for Heroes of Newerth: Reborn</strong><br>
-  Linux and Windows · automatic match status · no game files touched · no admin
+  Linux and Windows · automatic match status · game install untouched · no admin
 </p>
 
 <p align="center">
@@ -104,9 +104,9 @@ The image is a Discord-style preview of the six card payloads, not a screenshot;
 ## Why honrp
 
 - **It just works.** It finds HoN through Steam/Proton, Lutris, Heroic, Faugus, Bottles or plain Wine — no library paths to configure.
-- **Nothing invasive.** It reads the game's own `console.log`, never game memory, and never changes game files. The Lua bridge is one managed block in `startup.lua`.
+- **Nothing invasive.** It reads the game's own `console.log`, never game memory, and never changes the game install. The Lua bridge is one managed block in your user `startup.lua`.
 - **A proper desktop app.** A compact native window for status, settings and updates — no browser, no tray icon, no console left behind.
-- **Private by default.** It talks only to Discord's local socket; no telemetry, no analytics, no account login.
+- **Private by default.** Presence goes only to Discord's local socket; the optional update check talks to GitHub and can be disabled. No telemetry, analytics or account login.
 
 ## Help
 

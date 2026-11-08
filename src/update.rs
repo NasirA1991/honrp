@@ -47,9 +47,12 @@ pub fn current_version() -> &'static str {
 
 /// "v1.2.3", "1.2", "v1.2.3-rc1" -> (1, 2, 3)
 pub fn parse_version(text: &str) -> Option<(u64, u64, u64)> {
-    let t = text.trim().trim_start_matches(|c| c == 'v' || c == 'V');
-    let core = t.split(['-', '+']).next()?;
-    let mut it = core.split('.');
+    let t = text.trim().trim_start_matches(['v', 'V']);
+    // Never treat an RC/beta/build-tagged release as a final version.
+    if t.contains('-') || t.contains('+') {
+        return None;
+    }
+    let mut it = t.split('.');
     let major = it.next()?.parse().ok()?;
     let minor = it.next().unwrap_or("0").parse().ok()?;
     let patch = it.next().unwrap_or("0").parse().ok()?;
@@ -64,6 +67,7 @@ pub fn is_newer(latest: &str, current: &str) -> bool {
 }
 
 fn command(program: &str) -> Command {
+    #[allow(unused_mut)]
     let mut cmd = Command::new(program);
     #[cfg(windows)]
     {
@@ -103,7 +107,7 @@ pub fn fetch_latest() -> Result<Release> {
     let version = api
         .tag_name
         .trim()
-        .trim_start_matches(|c| c == 'v' || c == 'V')
+        .trim_start_matches(['v', 'V'])
         .to_string();
     if parse_version(&version).is_none() {
         bail!("unexpected release tag {:?}", api.tag_name);
@@ -169,8 +173,10 @@ fn download(url: &str, dest: &Path) -> Result<()> {
 
 fn verify_checksum(release: &Release, asset: &Asset, archive: &Path) -> Result<()> {
     let Some(checksums) = release.assets.iter().find(|a| a.name == "checksums.txt") else {
-        eprintln!("honrp: warning: release has no checksums.txt, skipping verification");
-        return Ok(());
+        bail!(
+            "release {} has no checksums.txt; refusing to update without verification",
+            release.tag
+        );
     };
     let tmp = std::env::temp_dir().join(format!("honrp-checksums-{}.txt", std::process::id()));
     download(&checksums.browser_download_url, &tmp)?;
@@ -358,19 +364,22 @@ pub fn notify_if_newer() {
     if recently_checked(&cache) {
         return;
     }
-    if let Some(dir) = cache.parent() {
-        let _ = fs::create_dir_all(dir);
-    }
-    let _ = fs::write(&cache, b"");
     match fetch_latest() {
-        Ok(release) if is_newer(&release.version, current_version()) => {
-            eprintln!(
-                "honrp: update available: {} -> {} (run `honrp update`)",
-                current_version(),
-                release.version
-            );
+        Ok(release) => {
+            // Cache only a successful check. An offline or rate-limited
+            // request must not suppress retries for a whole day.
+            if let Some(dir) = cache.parent() {
+                let _ = fs::create_dir_all(dir);
+            }
+            let _ = fs::write(&cache, b"");
+            if is_newer(&release.version, current_version()) {
+                eprintln!(
+                    "honrp: update available: {} -> {} (run `honrp update`)",
+                    current_version(),
+                    release.version
+                );
+            }
         }
-        Ok(_) => {}
         Err(_) => {
             // offline / rate limited: try again next time, quietly
         }
@@ -419,12 +428,27 @@ mod tests {
     fn versions() {
         assert_eq!(parse_version("v0.3.2"), Some((0, 3, 2)));
         assert_eq!(parse_version("0.3"), Some((0, 3, 0)));
-        assert_eq!(parse_version("v1.2.3-rc1"), Some((1, 2, 3)));
+        assert_eq!(parse_version("v1.2.3-rc1"), None);
         assert!(is_newer("v0.4.0", "0.3.2"));
         assert!(is_newer("v0.3.10", "0.3.9"));
         assert!(!is_newer("v0.3.2", "0.3.2"));
         assert!(!is_newer("v0.3.1", "0.3.2"));
         assert!(!is_newer("garbage", "0.3.2"));
+    }
+
+    #[test]
+    fn rejects_release_without_checksums() {
+        let release = Release {
+            tag: "v9.9.9".into(),
+            version: "9.9.9".into(),
+            assets: vec![],
+        };
+        let asset = Asset {
+            name: "honrp-v9.9.9-x86_64-linux.tar.gz".into(),
+            browser_download_url: String::new(),
+            size: 0,
+        };
+        assert!(verify_checksum(&release, &asset, Path::new("/does/not/exist")).is_err());
     }
 
     #[test]

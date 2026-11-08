@@ -158,7 +158,7 @@ fn main() -> Result<()> {
             #[cfg(feature = "gui")]
             {
                 let _ = cli.minimized;
-                return gui::run();
+                gui::run()
             }
             #[cfg(not(feature = "gui"))]
             {
@@ -203,7 +203,11 @@ fn status(cfg: &Config, as_json: bool, user_dir: Option<PathBuf>) -> Result<()> 
                     println!(
                         "card:        {}{}{}",
                         daemon.details,
-                        if daemon.state.is_empty() { "" } else { "  \u{b7}  " },
+                        if daemon.state.is_empty() {
+                            ""
+                        } else {
+                            "  \u{b7}  "
+                        },
                         daemon.state
                     );
                 }
@@ -385,13 +389,9 @@ fn doctor(cfg: &Config, user_dir: Option<PathBuf>) -> Result<()> {
 
     let sockets = ipc::socket_paths(None);
     println!("discord:    {} socket(s): {:?}", sockets.len(), sockets);
-    if !cfg.client_id.is_empty() {
-        match ipc::DiscordIpc::connect(&cfg.client_id, Some(cfg.ipc_socket.as_str())) {
-            Ok(_) => println!("handshake:  ok (application id {})", cfg.client_id),
-            Err(e) => println!("handshake:  FAILED: {e}"),
-        }
-    } else {
-        println!("client_id:  not configured");
+    match ipc::DiscordIpc::connect(&cfg.client_id, Some(cfg.ipc_socket.as_str())) {
+        Ok(_) => println!("handshake:  ok (application id {})", cfg.client_id),
+        Err(e) => println!("handshake:  FAILED: {e}"),
     }
 
     match Command::new("systemctl")
@@ -421,14 +421,38 @@ fn set_client_id(id: &str) -> Result<()> {
 
 #[cfg(unix)]
 const DESKTOP_ICONS: &[(u32, &[u8])] = &[
-    (16, include_bytes!("../assets/icons/hicolor/16x16/apps/honrp.png")),
-    (24, include_bytes!("../assets/icons/hicolor/24x24/apps/honrp.png")),
-    (32, include_bytes!("../assets/icons/hicolor/32x32/apps/honrp.png")),
-    (48, include_bytes!("../assets/icons/hicolor/48x48/apps/honrp.png")),
-    (64, include_bytes!("../assets/icons/hicolor/64x64/apps/honrp.png")),
-    (128, include_bytes!("../assets/icons/hicolor/128x128/apps/honrp.png")),
-    (256, include_bytes!("../assets/icons/hicolor/256x256/apps/honrp.png")),
-    (512, include_bytes!("../assets/icons/hicolor/512x512/apps/honrp.png")),
+    (
+        16,
+        include_bytes!("../assets/icons/hicolor/16x16/apps/honrp.png"),
+    ),
+    (
+        24,
+        include_bytes!("../assets/icons/hicolor/24x24/apps/honrp.png"),
+    ),
+    (
+        32,
+        include_bytes!("../assets/icons/hicolor/32x32/apps/honrp.png"),
+    ),
+    (
+        48,
+        include_bytes!("../assets/icons/hicolor/48x48/apps/honrp.png"),
+    ),
+    (
+        64,
+        include_bytes!("../assets/icons/hicolor/64x64/apps/honrp.png"),
+    ),
+    (
+        128,
+        include_bytes!("../assets/icons/hicolor/128x128/apps/honrp.png"),
+    ),
+    (
+        256,
+        include_bytes!("../assets/icons/hicolor/256x256/apps/honrp.png"),
+    ),
+    (
+        512,
+        include_bytes!("../assets/icons/hicolor/512x512/apps/honrp.png"),
+    ),
 ];
 
 /// Install the app-menu entry and hicolor icons for this user. This is what
@@ -525,13 +549,7 @@ fn install(
     println!();
     #[cfg(unix)]
     {
-        let cfg = Config::load(None);
-        if cfg.client_id.is_empty() {
-            eprintln!("warning: no Discord application id configured yet.");
-            eprintln!("  create one at https://discord.com/developers/applications and run:");
-            eprintln!("    honrp install --client-id <ID>");
-            eprintln!("  (the service is not started until an id is configured)");
-        } else if !no_service {
+        if !no_service {
             match service_install() {
                 Ok(()) => println!("systemd user service installed and started"),
                 Err(e) => println!("warning: systemd service not installed: {e}"),
@@ -618,30 +636,31 @@ fn sync_bridge(ud: &Path) -> Result<bool> {
     Ok(true)
 }
 
-fn strip_managed(mut text: String) -> String {
+fn strip_managed(mut text: String) -> Result<String> {
     while let Some(start) = text.find(BEGIN) {
         match text[start..].find(END) {
             Some(rel) => {
                 let end = start + rel + END.len();
                 text.replace_range(start..end, "");
             }
-            None => {
-                text.truncate(start);
-                break;
-            }
+            None => bail!(
+                "startup.lua has a {BEGIN} marker without an {END} marker; \
+                 refusing to edit it (fix or restore startup.lua.honrp.bak)"
+            ),
         }
     }
-    text
+    Ok(text)
 }
 
 fn mod_install(ud: &Path) -> Result<PathBuf> {
     fs::create_dir_all(ud).with_context(|| format!("creating {}", ud.display()))?;
     let target = ud.join("startup.lua");
     let existing = fs::read_to_string(&target).unwrap_or_default();
-    let user_part = strip_managed(existing);
+    let user_part = strip_managed(existing.clone())?;
     let backup = ud.join("startup.lua.honrp.bak");
-    if !user_part.trim().is_empty() && !backup.exists() {
-        fs::write(&backup, &user_part).with_context(|| "writing backup")?;
+    if !existing.trim().is_empty() && !backup.exists() {
+        // Keep the whole original, not just the content outside our block.
+        fs::write(&backup, &existing).with_context(|| "writing backup")?;
     }
     let body = if user_part.trim().is_empty() {
         format!("{BEGIN}\n{MOD_SRC}\n{END}\n")
@@ -657,7 +676,7 @@ fn mod_uninstall(ud: &Path) -> Result<()> {
     if !target.exists() {
         return Ok(());
     }
-    let rest = strip_managed(fs::read_to_string(&target)?);
+    let rest = strip_managed(fs::read_to_string(&target)?)?;
     if rest.trim().is_empty() {
         fs::remove_file(&target)?;
     } else {
@@ -752,7 +771,7 @@ fn service_install() -> Result<()> {
          \n\
          [Install]\n\
          WantedBy=default.target\n",
-        exe.display()
+        exe.display().to_string().replace('%', "%%")
     );
     fs::write(&path, unit)?;
     sh(Command::new("systemctl").args(["--user", "daemon-reload"]))?;

@@ -62,16 +62,35 @@ impl Config {
         if let Some(p) = config_path() {
             candidates.push(p);
         }
-        candidates.push(PathBuf::from("config.json"));
 
         for c in candidates {
-            if let Ok(text) = std::fs::read_to_string(&c) {
-                if let Ok(cfg) = serde_json::from_str::<Config>(&text) {
-                    return cfg.with_env();
+            match std::fs::read_to_string(&c) {
+                Ok(text) => match serde_json::from_str::<Config>(&text) {
+                    Ok(cfg) => return cfg.validate().with_env(),
+                    Err(e) => eprintln!(
+                        "honrp: warning: ignoring malformed config {}: {e}",
+                        c.display()
+                    ),
+                },
+                Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+                    eprintln!("honrp: warning: could not read {}: {e}", c.display())
                 }
+                Err(_) => {}
             }
         }
-        Config::default().with_env()
+        Config::default().validate().with_env()
+    }
+
+    fn validate(mut self) -> Self {
+        if !self.poll_interval.is_finite() || self.poll_interval < 0.2 {
+            eprintln!("honrp: warning: invalid poll_interval; using 1.0");
+            self.poll_interval = 1.0;
+        }
+        if !self.refresh_interval.is_finite() || self.refresh_interval < 5.0 {
+            eprintln!("honrp: warning: invalid refresh_interval; using 300");
+            self.refresh_interval = 300.0;
+        }
+        self
     }
 
     fn with_env(mut self) -> Self {

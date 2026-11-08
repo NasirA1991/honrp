@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 
 use crate::activity::{self, View};
 use crate::config::Config;
@@ -280,13 +280,6 @@ pub struct RunOpts {
 }
 
 pub fn run(cfg: &Config, opts: RunOpts) -> Result<()> {
-    if !opts.dry_run && cfg.client_id.is_empty() {
-        bail!(
-            "no Discord application id configured.\n\
-             Create one at https://discord.com/developers/applications and put its\n\
-             Application ID in ~/.config/honrp/config.json (client_id) or export HONRP_CLIENT_ID."
-        );
-    }
     let stop = Arc::new(AtomicBool::new(false));
     if crate::control::running() {
         eprintln!("honrp: a daemon is already running");
@@ -344,9 +337,7 @@ pub fn run(cfg: &Config, opts: RunOpts) -> Result<()> {
         .user_dir
         .clone()
         .or_else(|| detect::pick_user_dir(None, explicit_user_dir.as_deref()))
-        .or_else(|| {
-            dirs::document_dir().map(|d| d.join("Juvio").join("Heroes of Newerth"))
-        });
+        .or_else(|| dirs::document_dir().map(|d| d.join("Juvio").join("Heroes of Newerth")));
     #[cfg(not(windows))]
     let initial_bridge_dir = sm
         .user_dir
@@ -398,8 +389,10 @@ pub fn run(cfg: &Config, opts: RunOpts) -> Result<()> {
         };
         let now = Instant::now();
 
+        // Discord endpoint probing is only for the status label; five
+        // seconds is snappy enough and avoids hammering its socket.
         let should_probe = last_probe
-            .map(|t| now.duration_since(t) >= Duration::from_millis(1500))
+            .map(|t| now.duration_since(t) >= Duration::from_secs(5))
             .unwrap_or(true);
         if should_probe {
             last_probe = Some(now);
@@ -434,10 +427,7 @@ pub fn run(cfg: &Config, opts: RunOpts) -> Result<()> {
             s.game_pid = sm.pid();
             s.in_game = view.in_game;
             s.in_queue = view.in_queue;
-            s.user_dir = sm
-                .user_dir
-                .as_ref()
-                .map(|p| p.display().to_string());
+            s.user_dir = sm.user_dir.as_ref().map(|p| p.display().to_string());
             match &activity {
                 Some(a) => {
                     s.details = a.details.clone();
